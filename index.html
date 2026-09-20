@@ -1,17 +1,597 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>KALIYANM LIST · WedList</title><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><style>
-:root{--bg:#f6f7fb;--card:#fff;--ink:#111827;--muted:#667085;--line:#e7eaf0;--accent:#6d5dfc;--green:#16a34a;--red:#dc2626;--amber:#d97706}*{box-sizing:border-box}body{margin:0;background:var(--bg);font-family:Inter,system-ui,-apple-system,Segoe UI,sans-serif;color:var(--ink)}button,input,select,textarea{font:inherit}button{cursor:pointer;border:0}.wrap{max-width:1100px;margin:auto;padding:18px}header{background:linear-gradient(135deg,#171827,#3b356f);color:#fff;border-radius:24px;padding:24px;margin-bottom:16px;box-shadow:0 10px 30px #1112}h1{margin:0;font-size:28px}header p{margin:5px 0 0;color:#d9d7ee}.status{margin-top:14px;font-size:13px;display:flex;gap:8px;align-items:center}.dot{width:9px;height:9px;border-radius:50%;background:#fbbf24}.dot.ok{background:#4ade80}.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:16px 0}.stat,.card,.panel{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:15px}.stat b{display:block;font-size:25px;margin-top:4px}.muted{color:var(--muted);font-size:12px}.toolbar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}input,select,textarea{border:1px solid var(--line);border-radius:12px;padding:11px;background:#fff;color:var(--ink);outline:none}input:focus,select:focus,textarea:focus{border-color:var(--accent)}#search{flex:1;min-width:210px}.btn{padding:11px 14px;border-radius:12px;background:#111827;color:white;font-weight:700}.btn.light{background:#fff;color:#111827;border:1px solid var(--line)}.btn.accent{background:var(--accent)}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.card{position:relative}.name{font-size:17px;font-weight:800;margin-right:55px}.family{margin:4px 0 10px;color:var(--muted)}.chips{display:flex;gap:6px;flex-wrap:wrap}.chip{font-size:11px;padding:5px 8px;border-radius:99px;background:#f0f1f5}.chip.green{background:#dcfce7;color:#166534}.chip.amber{background:#fef3c7;color:#92400e}.chip.red{background:#fee2e2;color:#991b1b}.actions{display:flex;gap:7px;margin-top:12px}.actions button{flex:1;padding:9px;border-radius:10px;background:#f3f4f6}.empty{padding:35px;text-align:center;color:var(--muted)}.modal{position:fixed;inset:0;background:#0008;display:none;align-items:flex-end;justify-content:center;padding:12px;z-index:5}.modal.show{display:flex}.sheet{background:#fff;border-radius:22px 22px 14px 14px;width:min(600px,100%);max-height:92vh;overflow:auto;padding:20px}.row{display:grid;grid-template-columns:1fr 1fr;gap:10px}label{font-size:12px;font-weight:700;color:var(--muted);display:block;margin:8px 0 5px}textarea{min-height:80px;width:100%}.full{grid-column:1/-1}.close{float:right;background:#f1f2f5;border-radius:50%;width:34px;height:34px}.modal-actions{display:flex;gap:8px;margin-top:16px}.modal-actions .btn{flex:1}@media(max-width:700px){.stats{grid-template-columns:repeat(2,1fr)}.grid{grid-template-columns:1fr}.row{grid-template-columns:1fr}.wrap{padding:12px}header{border-radius:18px;padding:20px}}
-</style></head><body><div class="wrap"><header><h1>💍 KALIYANM LIST</h1><p>Mehjabin & Adul · Wedding Guest Manager</p><div class="status"><span id="dot" class="dot"></span><span id="sync">Connecting to Supabase…</span></div></header><section class="stats"><div class="stat"><span class="muted">Guest groups</span><b id="groups">0</b></div><div class="stat"><span class="muted">Total members</span><b id="members">0</b></div><div class="stat"><span class="muted">Confirmed</span><b id="confirmed">0</b></div><div class="stat"><span class="muted">Checked in</span><b id="checked">0</b></div></section><div class="toolbar"><input id="search" placeholder="Search name, family or phone…"><select id="filter"><option value="all">All RSVP</option><option>Pending</option><option>Confirmed</option><option>Declined</option><option value="checked">Checked in</option></select><button class="btn accent" onclick="openNew()">＋ Add guest</button><button class="btn light" onclick="load()">↻ Sync</button></div><main id="list" class="grid"></main></div><div id="modal" class="modal"><div class="sheet"><button class="close" onclick="closeModal()">×</button><h2 id="modalTitle">Add guest</h2><form id="form"><input type="hidden" id="id"><div class="row"><div><label>Name</label><input id="name" required></div><div><label>Members</label><input id="members" type="number" min="1" value="1" required></div><div><label>Family / group</label><input id="family"></div><div><label>Phone</label><input id="phone" inputmode="tel"></div><div><label>Side</label><select id="side"><option>Family</option><option>Bride</option><option>Groom</option><option>Friends</option><option>Other</option></select></div><div><label>RSVP</label><select id="rsvp"><option>Pending</option><option>Confirmed</option><option>Declined</option></select></div><div><label>Address</label><input id="address"></div><div><label>Food</label><input id="food"></div><div class="full"><label>Notes</label><textarea id="notes"></textarea></div></div><div class="modal-actions"><button type="button" class="btn light" onclick="closeModal()">Cancel</button><button class="btn accent">Save guest</button></div></form></div></div><script>
-const SUPABASE_URL='https://eljlymnbwocrdvklaoih.supabase.co';const SUPABASE_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzIiwicmVmIjoiZWpsbHltbmJ3b2NyZHZrbGFvaWgiLCJyb2xlIjoiYW5vbiIsImlhdCI6MTc4OTU3Mjg3NSwiZXhwIjoyMTA1MTQ4ODc1fQ.5KM52p27bMZreTQtsDvQUP8edZJEW8S-No3quZjmyck";const sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);let guests=[];
-const $=id=>document.getElementById(id);const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':'&quot;',"'":"&#039;"}[c]));
-async function load(){$('sync').textContent='Syncing…';let r=await sb.from('guests').select('*').order('family').order('name');if(r.error){$('sync').textContent='Database error: '+r.error.message;return}guests=r.data||[];render();$('dot').classList.add('ok');$('sync').textContent='Live sync connected';}
-function render(){let q=$('search').value.toLowerCase(), f=$('filter').value;let a=guests.filter(g=>{let match=!q||[g.name,g.family,g.phone].join(' ').toLowerCase().includes(q);let mf=f==='all'||(f==='checked'?g.checked_in:g.rsvp===f);return match&&mf});$('groups').textContent=guests.length;$('members').textContent=guests.reduce((s,g)=>s+Number(g.members||0),0);$('confirmed').textContent=guests.filter(g=>g.rsvp==='Confirmed').reduce((s,g)=>s+Number(g.members||0),0);$('checked').textContent=guests.filter(g=>g.checked_in).reduce((s,g)=>s+Number(g.members||0),0);$('list').innerHTML=a.length?a.map(card).join(''):'<div class="empty">No guests found.</div>'}
-function card(g){let c=g.rsvp==='Confirmed'?'green':g.rsvp==='Declined'?'red':'amber';return `<article class="card"><div class="name">${esc(g.name)}</div><div class="family">${esc(g.family||'Uncategorized')}</div><div class="chips"><span class="chip">👥 ${g.members}</span><span class="chip ${c}">${esc(g.rsvp)}</span>${g.checked_in?'<span class="chip green">✓ Checked in</span>':''}</div><div class="actions"><button onclick="edit('${g.id}')">Edit</button><button onclick="check('${g.id}')">${g.checked_in?'Undo check-in':'Check in'}</button>${g.phone?`<button onclick="wa('${g.id}')">WhatsApp</button>`:''}</div></article>`}
-function openNew(){$('modalTitle').textContent='Add guest';$('form').reset();$('id').value='';$('members').value=1;$('rsvp').value='Pending';$('modal').classList.add('show')}
-function edit(id){let g=guests.find(x=>x.id===id);if(!g)return;$('modalTitle').textContent='Edit guest';for(let k of ['id','name','members','family','phone','side','rsvp','address','food','notes'])$(k).value=g[k]??'';$('modal').classList.add('show')}
-function closeModal(){$('modal').classList.remove('show')}
-$('form').onsubmit=async e=>{e.preventDefault();let id=$('id').value;let data={name:$('name').value.trim(),members:Number($('members').value)||1,family:$('family').value.trim()||'Uncategorized',phone:$('phone').value.trim(),side:$('side').value,rsvp:$('rsvp').value,address:$('address').value.trim(),food:$('food').value.trim(),notes:$('notes').value.trim()};let r=id?await sb.from('guests').update(data).eq('id',id):await sb.from('guests').insert(data);if(r.error)return alert(r.error.message);closeModal();load()};
-async function check(id){let g=guests.find(x=>x.id===id);if(!g)return;let r=await sb.from('guests').update({checked_in:!g.checked_in}).eq('id',id);if(r.error)alert(r.error.message);else load()}
-async function wa(id){let g=guests.find(x=>x.id===id);if(!g||!g.phone)return;let p=g.phone.replace(/\D/g,'');if(p.length===10)p='91'+p;let msg=`Hello ${g.name},\n\nYou are invited to the wedding of Mehjabin & Adul.\n\nWe look forward to celebrating with you! 💍`;window.open('https://wa.me/'+p+'?text='+encodeURIComponent(msg),'_blank')}
-$('search').oninput=render;$('filter').onchange=render;
-sb.channel('guests-live').on('postgres_changes',{event:'*',schema:'public',table:'guests'},()=>load()).subscribe();load();
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="color-scheme" content="light"><meta name="theme-color" content="#1f5d4f"><title>WedList — Adul &amp; Mehjabin</title><style>
+
+:root{--bg:#f5f7f6;--card:#fff;--ink:#19352e;--muted:#70817b;--brand:#1f5d4f;--soft:#e5f1ec;--line:#e4ebe8;--danger:#b84a4a;--warn:#a56b18;--shadow:0 8px 28px rgba(25,53,46,.07)}*{box-sizing:border-box}body{margin:0;background:#e9eeeb;font-family:Inter,system-ui,-apple-system,Segoe UI,sans-serif;color:var(--ink)}button,input,select,textarea{font:inherit}button{cursor:pointer}.app{max-width:520px;margin:auto;min-height:100vh;background:var(--bg);padding-bottom:84px}header{padding:20px 18px 12px;display:flex;justify-content:space-between;align-items:center}.brand{font-size:20px;font-weight:850}.sub{font-size:12px;color:var(--muted);margin-top:2px}.icon{width:40px;height:40px;border:1px solid var(--line);background:#fff;border-radius:13px}.screen{padding:8px 16px}.page{display:none}.page.active{display:block}.hero{padding:22px;border-radius:24px;background:linear-gradient(135deg,#e6f1ec,#fff);border:1px solid #dceae4;box-shadow:var(--shadow);margin-bottom:13px}.eyebrow{font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:var(--brand);font-weight:850}.hero h1{font:700 29px Georgia,serif;margin:7px 0 4px}.hero p{font-size:13px;color:var(--muted);margin:0}.stats{display:grid;grid-template-columns:1fr 1fr;gap:9px}.stat{background:#fff;border:1px solid var(--line);border-radius:17px;padding:14px}.n{font-size:24px;font-weight:850}.l{font-size:11px;color:var(--muted);margin-top:2px}.section{margin-top:20px}.sectionhead{display:flex;align-items:center;justify-content:space-between;margin-bottom:9px}.sectionhead h2{font-size:16px;margin:0}.link{background:none;color:var(--brand);font-size:12px;font-weight:800}.quick{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin:13px 0}.primary,.secondary,.danger{border-radius:14px;padding:13px;font-weight:800}.primary{background:var(--brand);color:#fff}.secondary{background:#fff;color:var(--ink);border:1px solid var(--line)}.danger{background:#fff0f0;color:var(--danger)}.search{display:flex;gap:8px;align-items:center;background:#fff;border:1px solid var(--line);padding:11px 13px;border-radius:15px;margin-bottom:9px}.search input{border:0;outline:0;width:100%;background:transparent}.filters{display:flex;gap:7px;overflow:auto;padding-bottom:5px}.chip{white-space:nowrap;border:1px solid var(--line);background:#fff;color:var(--muted);padding:8px 11px;border-radius:999px;font-size:11px}.chip.active{background:var(--brand);border-color:var(--brand);color:#fff}.guest{background:#fff;border:1px solid var(--line);border-radius:17px;padding:13px;margin:8px 0;display:flex;gap:11px;align-items:center;box-shadow:0 3px 14px rgba(25,53,46,.035)}.avatar{width:42px;height:42px;border-radius:50%;background:var(--soft);color:var(--brand);display:grid;place-items:center;font-size:12px;font-weight:850;flex:none}.gmain{min-width:0;flex:1}.gname{font-size:14px;font-weight:800;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.meta{font-size:10px;color:var(--muted);margin-top:4px;line-height:1.35}.badge{font-size:9px;font-weight:850;padding:6px 8px;border-radius:999px;white-space:nowrap}.confirmed{background:#e3f3ea;color:#267050}.pending{background:#fff1d8;color:#966114}.declined{background:#fde5e5;color:#aa4747}.unset{background:#eef1f0;color:#65716d}.check{font-size:9px;color:var(--brand);font-weight:850;margin-top:4px}.bottom{position:fixed;z-index:4;bottom:0;left:50%;transform:translateX(-50%);width:min(520px,100%);height:72px;background:rgba(255,255,255,.96);backdrop-filter:blur(14px);border-top:1px solid var(--line);display:grid;grid-template-columns:repeat(4,1fr);padding:7px 7px env(safe-area-inset-bottom)}.nav{border:0;background:none;color:#7d8b86;font-size:10px;font-weight:750;display:flex;flex-direction:column;gap:4px;align-items:center}.nav span{font-size:19px}.nav.active{color:var(--brand)}.empty{text-align:center;color:var(--muted);padding:35px 10px;font-size:13px}.modal{position:fixed;z-index:10;inset:0;background:rgba(14,31,26,.45);display:none;align-items:flex-end}.modal.open{display:flex}.sheet{width:min(520px,100%);max-height:90vh;overflow:auto;background:#fff;border-radius:26px 26px 0 0;padding:19px}.close{float:right;border:0;background:#f1f4f3;border-radius:10px;width:34px;height:34px}.sheet h2{font-size:20px;margin:4px 0 17px}.field{margin:0 0 12px}.field label{display:block;font-size:11px;color:var(--muted);margin-bottom:5px}.field input,.field select,.field textarea{width:100%;border:1px solid var(--line);border-radius:12px;padding:11px;outline:0;background:#fff}.row{display:grid;grid-template-columns:1fr 1fr;gap:9px}.detail{display:grid;grid-template-columns:1fr 1fr;gap:8px}.info{background:var(--bg);padding:11px;border-radius:13px}.info small{font-size:9px;color:var(--muted);display:block}.info b{font-size:12px;display:block;margin-top:3px}.actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:13px}.toast{position:fixed;z-index:20;bottom:86px;left:50%;transform:translateX(-50%);background:#19352e;color:#fff;border-radius:12px;padding:10px 14px;font-size:12px;display:none;max-width:90%;text-align:center}.toast.show{display:block}.family{font-size:10px;font-weight:850;color:var(--brand);margin:14px 3px 5px;text-transform:uppercase;letter-spacing:.7px}.summary{background:#fff;border:1px solid var(--line);border-radius:16px;padding:12px;margin-bottom:9px;font-size:12px;color:var(--muted)}@media(min-width:700px){body{padding:20px}.app{border-radius:28px;overflow:hidden;box-shadow:0 15px 50px rgba(20,45,37,.12)}}
+
+.bottom{grid-template-columns:repeat(6,1fr);padding-left:2px;padding-right:2px}.nav{font-size:9.5px}.nav span{font-size:18px}
+header .hbtns{display:flex;gap:8px}
+.pill{display:inline-block;margin-top:12px;background:var(--brand);color:#fff;font-size:12px;font-weight:800;padding:7px 12px;border-radius:999px}
+.tag{font-size:10px;font-weight:800;margin-top:4px;display:inline-block}.tag.yes{color:#267050}.tag.no{color:#9a7b2f}
+.bar{height:8px;background:var(--soft);border-radius:99px;overflow:hidden;margin:9px 0 6px}.bar i{display:block;height:100%;background:var(--brand);border-radius:99px;transition:width .3s}
+.summary b{color:var(--ink)}
+.seg{display:grid;grid-template-columns:1fr 1fr;background:#e3ebe7;border-radius:13px;padding:3px;margin:10px 0}.seg button{border:0;background:none;padding:9px 6px;border-radius:10px;font-size:12px;font-weight:800;color:var(--muted)}.seg button.on{background:#fff;color:var(--brand);box-shadow:0 1px 4px rgba(0,0,0,.08)}
+.qcard{background:#fff;border:1px solid #dceae4;border-radius:22px;padding:16px;box-shadow:var(--shadow);margin:12px 0}.qname{font:700 22px Georgia,serif;margin:5px 0 2px;word-break:break-word}
+.confirm{background:var(--soft);border-radius:14px;padding:11px;margin-top:10px}.confirm .actions{margin-top:8px}
+.cd{text-align:center;padding:24px 16px}.cd .big{font:700 68px Georgia,serif;color:var(--brand);line-height:1}.cd .lbl{font-size:13px;color:var(--muted);margin-top:6px}.cd .when{font-size:12px;font-weight:800;margin-top:10px}
+.task{display:flex;gap:11px;align-items:center;background:#fff;border:1px solid var(--line);border-radius:15px;padding:11px 12px;margin:7px 0}.tick{width:28px;height:28px;border-radius:50%;border:2px solid #b9cbc4;background:#fff;color:#fff;font-size:15px;flex:none;display:grid;place-items:center;padding:0}.task.done .tick{background:var(--brand);border-color:var(--brand)}.task.done .tt{text-decoration:line-through;color:var(--muted)}.tmain{flex:1;min-width:0;cursor:pointer}.tt{font-size:14px;font-weight:700}.due{font-size:10px;color:var(--muted);margin-top:3px}.due.over{color:var(--danger);font-weight:800}
+.addtask{display:grid;grid-template-columns:1fr auto;gap:8px;margin:10px 0}.addtask input{border:1px solid var(--line);border-radius:12px;padding:11px;background:#fff;outline:0;min-width:0}.addtask .d{grid-column:1/3;display:grid;grid-template-columns:1fr auto;gap:8px;align-items:center}.addtask .d label{font-size:11px;color:var(--muted)}
+.note{background:#fff8e8;border:1px solid #f0e0b8;color:#7a5a17;border-radius:13px;padding:11px;font-size:11.5px;line-height:1.5;margin:10px 0}.note.info{background:var(--soft);border-color:#d3e6de;color:#245648}
+.sheet h3{font-size:13px;margin:18px 0 6px}
+.code{font:11px ui-monospace,Menlo,monospace;word-break:break-all}
+.phs{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 10px}.phs .chip{font-family:ui-monospace,Menlo,monospace;font-size:11px}
+.msgbox{white-space:pre-wrap;background:var(--bg);border:1px solid var(--line);border-radius:14px;padding:12px;font-size:13px;line-height:1.5;max-height:200px;overflow:auto;word-break:break-word}
+.sheet textarea{resize:vertical}
+.tiny{font-size:10px;color:var(--muted)}
+.hint{font-size:11px;color:var(--muted);margin:6px 2px}
+
+.icon{position:relative}.dot{display:none;position:absolute;top:4px;right:4px;width:10px;height:10px;border-radius:50%;border:2px solid #fff}body.live .dot{display:block}.dot.ok{background:#2f9e6e}.dot.sync{background:#e0a030}.dot.err{background:#c94f4f}.dot.off{background:#9aa7a2}
+
+</style></head><body>
+<div class="app">
+<header><div><div class="brand">WedList</div><div class="sub" id="hdrSub">Guest Manager</div></div><div class="hbtns"><button class="icon" title="Family sync" aria-label="Family sync" onclick="openSync()">⇄<i id="syncDot" class="dot off"></i></button><button class="icon" title="Settings" aria-label="Settings" onclick="openSettings()">⚙</button></div></header>
+<main class="screen">
+
+<section id="home" class="page active">
+<div class="hero"><div class="eyebrow">Wedding guest list</div><h1 id="heroH1">Wedding</h1><p>Guest management dashboard</p><div id="heroCd"></div></div>
+<div class="stats">
+<div class="stat"><div class="n" id="totalPeople">0</div><div class="l">Total members</div></div>
+<div class="stat"><div class="n" id="groups">0</div><div class="l">Guest groups</div></div>
+<div class="stat"><div class="n" id="confirmed">0</div><div class="l">Confirmed members</div></div>
+<div class="stat"><div class="n" id="checked">0</div><div class="l">Checked in</div></div>
+</div>
+<div class="quick">
+<button class="primary" onclick="showPage('guests');focusSearch()">⌕ Find guest</button>
+<button class="primary" onclick="showPage('invites')">✉ Send invites</button>
+<button class="secondary" onclick="showPage('plan')">◷ Countdown &amp; tasks</button>
+<button class="secondary" onclick="showPage('checkin');focusCheck()">✓ Check-in</button>
+</div>
+<div id="homeInvite"></div>
+<div class="section"><div class="sectionhead"><h2>Next tasks</h2><button class="link" onclick="showPage('plan')">View all</button></div><div id="homeTasks"></div></div>
+<div class="section"><div class="sectionhead"><h2>Guest groups</h2><button class="link" onclick="showPage('guests')">View all</button></div><div id="recent"></div></div>
+</section>
+
+<section id="guests" class="page">
+<div class="sectionhead"><h2>Guest List</h2><button class="link" onclick="openAdd()">＋ Add</button></div>
+<div class="search">⌕<input id="search" placeholder="Search name, family or phone…" oninput="renderGuests()"></div>
+<div class="filters">
+<button class="chip active" data-filter="all">All</button>
+<button class="chip" data-filter="Confirmed">Confirmed</button>
+<button class="chip" data-filter="Pending">Pending</button>
+<button class="chip" data-filter="Declined">Declined</button>
+<button class="chip" data-filter="Not set">Not set</button>
+<button class="chip" data-filter="inv:no">Not invited</button>
+<button class="chip" data-filter="inv:yes">Invited</button>
+</div>
+<div id="guestList"></div>
+</section>
+
+<section id="invites" class="page">
+<div class="sectionhead"><h2>Invitations</h2><button class="link" onclick="openTemplates()">✎ Edit templates</button></div>
+<div id="invBody"></div>
+</section>
+
+<section id="plan" class="page">
+<div class="sectionhead"><h2>Countdown &amp; tasks</h2><button class="link" onclick="openSettings()">✎ Wedding details</button></div>
+<div id="planBody"></div>
+</section>
+
+<section id="checkin" class="page">
+<div class="sectionhead"><h2>Check-in</h2></div>
+<div class="hero"><div class="eyebrow">Reception</div><h1 style="font-family:inherit;font-size:22px">Find a guest group</h1><p>Search and mark the whole group as arrived.</p></div>
+<div class="search">⌕<input id="checkSearch" placeholder="Name or family…" oninput="renderCheck()"></div>
+<div id="checkResults"></div>
+</section>
+
+<section id="reports" class="page">
+<div class="sectionhead"><h2>Reports</h2></div>
+<div id="reportSummary" class="summary"></div>
+<div class="guest" onclick="exportCSV()"><div class="avatar">⇩</div><div class="gmain"><div class="gname">Export full guest list</div><div class="meta">CSV file with all groups, invites and attendance</div></div>›</div>
+<div class="guest" onclick="exportCSV('Confirmed')"><div class="avatar">✓</div><div class="gmain"><div class="gname">Export confirmed</div><div class="meta">Only confirmed groups</div></div>›</div>
+<div class="guest" onclick="exportCSV('Not invited')"><div class="avatar">✉</div><div class="gmain"><div class="gname">Export not yet invited</div><div class="meta">Groups still waiting for an invitation</div></div>›</div>
+<div class="guest" onclick="exportCSV('Checked In')"><div class="avatar">✓</div><div class="gmain"><div class="gname">Export attendance</div><div class="meta">Groups already checked in</div></div>›</div>
+<div class="guest" onclick="openSync()"><div class="avatar">⇄</div><div class="gmain"><div class="gname">Family sync &amp; backup</div><div class="meta">Combine changes from family, save a backup</div></div>›</div>
+<div class="guest" onclick="resetData()"><div class="avatar">↺</div><div class="gmain"><div class="gname">Remove all guests</div><div class="meta">Clear the list and start again</div></div>›</div>
+</section>
+
+</main>
+<nav class="bottom">
+<button class="nav active" data-page="home" onclick="showPage('home')"><span>⌂</span>Home</button>
+<button class="nav" data-page="guests" onclick="showPage('guests')"><span>♙</span>Guests</button>
+<button class="nav" data-page="invites" onclick="showPage('invites')"><span>✉</span>Invites</button>
+<button class="nav" data-page="plan" onclick="showPage('plan')"><span>◷</span>Plan</button>
+<button class="nav" data-page="checkin" onclick="showPage('checkin')"><span>✓</span>Check-in</button>
+<button class="nav" data-page="reports" onclick="showPage('reports')"><span>▥</span>Reports</button>
+</nav>
+</div>
+<div id="modal" class="modal" onclick="if(event.target===this)closeModal()"><div class="sheet"><button class="close" onclick="closeModal()" aria-label="Close">×</button><div id="modalContent"></div></div></div>
+<input type="file" id="fileIn" accept=".json,.txt,application/json,text/plain" style="display:none" onchange="loadFile(this)">
+<div id="toast" class="toast"></div>
+
+<script>
+/* ================= WedList v2 ================= */
+const ORIGINAL=[];
+ORIGINAL.forEach((g,i)=>{g.id='g'+i});
+const KEY='wedlistState3',OLDKEY='wedlistGuests';
+const $=id=>document.getElementById(id);
+const esc=v=>String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+const now=()=>Date.now();
+const uid=p=>p+now().toString(36)+Math.random().toString(36).slice(2,6);
+const ID_OK=/^[A-Za-z0-9_-]{1,40}$/,DATE_OK=/^\d{4}-\d{2}-\d{2}$/;
+const num=x=>Number.isFinite(+x)?+x:0;
+const str=(v,n)=>String(v??'').slice(0,n);
+const RSVP=['Not set','Pending','Confirmed','Declined'];
+let storageOK=true;
+const SB_URL='https://eljlymnbwocrdvklaoih.supabase.co',SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVsamx5bW5id29jcmR2a2xhb2loIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk1NzI4NzUsImV4cCI6MjEwNTE0ODg3NX0.5KM52p27bMZreTQtsDvQUP8edZJEW8S-No3quZjmyck';
+const LIVE=/^https:\/\//.test(SB_URL)&&SB_KEY.length>20;
+
+/* ---------- defaults ---------- */
+const DEFAULT_TPL=[
+{id:'tpl_en_invite',title:'English invitation',kind:'invite',body:'Hi {name}, you are invited to the wedding of {couple}!\n\n{details}\n\nWe would be delighted to have you and your family with us. 🤍'},
+{id:'tpl_ml_invite',title:'Malayalam invitation',kind:'invite',body:'പ്രിയപ്പെട്ട {name}, {couple} എന്നിവരുടെ വിവാഹത്തിലേക്ക് താങ്കളെയും കുടുംബത്തെയും ഹൃദയപൂർവ്വം ക്ഷണിക്കുന്നു.\n\n{details}\n\nതാങ്കളുടെ സാന്നിധ്യം ഞങ്ങൾക്ക് ഏറെ സന്തോഷം നൽകും. 🤍'},
+{id:'tpl_en_remind',title:'English reminder',kind:'remind',body:'Hi {name}, a gentle reminder about the wedding of {couple}.\n\n{details}\n\nPlease let us know if you and your family can make it. Thank you! 🤍'},
+{id:'tpl_ml_remind',title:'Malayalam reminder',kind:'remind',body:'പ്രിയപ്പെട്ട {name}, {couple} എന്നിവരുടെ വിവാഹത്തെക്കുറിച്ച് ഒരു ഓർമ്മപ്പെടുത്തൽ.\n\n{details}\n\nതാങ്കൾക്കും കുടുംബത്തിനും വരാൻ കഴിയുമോ എന്ന് അറിയിക്കുമല്ലോ. നന്ദി! 🤍'}
+];
+const DEFAULT_TASKS=['Finalise wedding date & venue','Finalise the guest list','Book caterer & decide the menu','Design & print invitations','Send invitations (Invites tab)','Book photographer & videographer','Buy outfits & jewellery','Decoration & stage','Arrange stay & transport for outstation guests','Follow up on pending RSVPs','Confirm final headcount with caterer','Plan the wedding-day schedule'].map((t,i)=>({id:'t_s'+(i+1),title:t}));
+const PLACEHOLDERS=['{name}','{family}','{members}','{couple}','{date}','{venue}','{details}'];
+
+function baseGuest(g){return{id:ID_OK.test(g.id||'')?g.id:uid('n'),name:str(g.name,120)||'Guest',count:Math.min(999,Math.max(1,parseInt(g.count)||1)),phone:str(g.phone,32),family:str(g.family,80)||'Unassigned',status:RSVP.includes(g.status)?g.status:'Not set',checked:!!g.checked,notes:str(g.notes,1000),invited:!!g.invited,invitedAt:num(g.invitedAt),reminders:Math.max(0,parseInt(g.reminders)||0),remindedAt:num(g.remindedAt),u:num(g.u),by:str(g.by,40)}}
+function freshState(){return{v:2,guests:ORIGINAL.map(baseGuest),
+tasks:DEFAULT_TASKS.map(t=>({id:t.id,title:t.title,due:'',who:'',done:false,u:0,by:''})),
+tpls:DEFAULT_TPL.map(t=>({...t,u:0})),
+settings:{couple:'Adul & Mehjabin',date:'',venue:'',tplInvite:'tpl_en_invite',tplRemind:'tpl_en_remind',u:0},
+deleted:{},device:{me:''}}}
+
+function migrate(st,old){
+  const pool=new Map();st.guests.forEach(g=>{const k=(g.name+'|'+g.family+'|'+g.count).toLowerCase();if(!pool.has(k))pool.set(k,[]);pool.get(k).push(g)});
+  const used=new Set(),out=[];
+  old.forEach(o=>{
+    const k=(o.name+'|'+o.family+'|'+o.count).toLowerCase(),base=(pool.get(k)||[]).find(x=>!used.has(x.id));
+    let g;
+    if(base){used.add(base.id);g={...base};const changed=(o.status&&o.status!==base.status)||o.checked||o.notes||o.phone;
+      g.status=RSVP.includes(o.status)?o.status:'Not set';g.checked=!!o.checked;g.notes=str(o.notes,1000);g.phone=str(o.phone,32);if(changed)g.u=now()}
+    else{g=baseGuest({...o,id:uid('n')});g.u=now()}
+    out.push(g)});
+  st.guests.forEach(b=>{if(!used.has(b.id))st.deleted[b.id]=now()});
+  st.guests=out}
+function normalize(st){
+  const d=freshState();
+  st.guests=(Array.isArray(st.guests)?st.guests:d.guests).map(baseGuest);
+  st.tasks=Array.isArray(st.tasks)?st.tasks:d.tasks;
+  st.tpls=Array.isArray(st.tpls)&&st.tpls.length?st.tpls:d.tpls;
+  st.settings=Object.assign({},d.settings,st.settings||{});
+  st.deleted=st.deleted&&typeof st.deleted==='object'?st.deleted:{};
+  st.device=Object.assign({me:''},st.device||{});
+  return st}
+function load(){
+  let st=null;
+  try{const raw=localStorage.getItem(KEY);if(raw)st=JSON.parse(raw)}catch(e){}
+  if(!st||!Array.isArray(st.guests)){
+    st=freshState();
+    try{const old=JSON.parse(localStorage.getItem(OLDKEY)||'null');if(ORIGINAL.length&&Array.isArray(old)&&old.length)migrate(st,old)}catch(e){}
+  }
+  return normalize(st)}
+let S=load();
+let inSync=false,pendingRefresh=false;
+function save(){try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){storageOK=false}if(LIVE&&S.device.room&&!inSync)scheduleSync()}
+function touch(r){r.u=now();r.by=str(S.device.me,40);return r}
+const G=id=>S.guests.find(g=>g.id===id);
+const sum=a=>a.reduce((s,g)=>s+(+g.count||0),0);
+
+/* ---------- small helpers ---------- */
+function todayStr(){const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}
+function fmtDate(d){if(!d||!DATE_OK.test(d))return'';const x=new Date(d+'T00:00:00');return isNaN(x)?'':x.toLocaleDateString('en-IN',{weekday:'short',day:'numeric',month:'short',year:'numeric'})}
+function fmtShort(ts){return ts?new Date(ts).toLocaleDateString('en-IN',{day:'numeric',month:'short'}):''}
+function fmtShortDate(d){if(!d||!DATE_OK.test(d))return'';return new Date(d+'T00:00:00').toLocaleDateString('en-IN',{day:'numeric',month:'short'})}
+function daysLeft(){const d=S.settings.date;if(!d||!DATE_OK.test(d))return null;const t=new Date(d+'T00:00:00'),n=new Date();n.setHours(0,0,0,0);return Math.round((t-n)/864e5)}
+function initials(n){return n.split(/\s+/).filter(Boolean).slice(0,2).map(x=>x[0]).join('').toUpperCase()}
+function statusClass(s){return s==='Confirmed'?'confirmed':s==='Pending'?'pending':s==='Declined'?'declined':'unset'}
+function waNumber(p){let d=String(p||'').replace(/\D/g,'');if(d.length===10)d='91'+d;else if(d.length===11&&d[0]==='0')d='91'+d.slice(1);return d}
+function toast(t){$('toast').textContent=t;$('toast').classList.add('show');clearTimeout(window.__toast);window.__toast=setTimeout(()=>$('toast').classList.remove('show'),2200)}
+function openModal(html){$('modalContent').innerHTML=html;$('modal').classList.add('open');$('modal').querySelector('.sheet').scrollTop=0}
+function closeModal(){$('modal').classList.remove('open');if(pendingRefresh){pendingRefresh=false;refresh()}}
+let _yes=null,_no=null;
+function askConfirm(msg,yesLabel,onYes,onNo){_yes=onYes;_no=onNo;openModal(`<h2>Are you sure?</h2><p style="font-size:14px;line-height:1.5;margin:0 0 14px">${esc(msg)}</p><div class="actions"><button class="danger" onclick="confirmYes()">${esc(yesLabel)}</button><button class="secondary" onclick="confirmNo()">Cancel</button></div>`)}
+function confirmYes(){const f=_yes;_yes=_no=null;closeModal();if(f)f()}
+function confirmNo(){const f=_no;_yes=_no=null;if(f)f();else closeModal()}
+async function copyText(t){
+  try{await navigator.clipboard.writeText(t);return true}catch(e){}
+  try{const ta=document.createElement('textarea');ta.value=t;ta.style.cssText='position:fixed;opacity:0;top:0';document.body.appendChild(ta);ta.select();const ok=document.execCommand('copy');ta.remove();return ok}catch(e){return false}}
+async function saveFile(filename,data){
+  try{
+    const d=window.claude&&await window.claude.use('downloads');
+    if(d){await d.save({filename,data});return true}
+    const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([data],{type:'text/plain;charset=utf-8'}));a.download=filename;document.body.appendChild(a);a.click();a.remove();return true
+  }catch(e){if(e&&e.code==='declined')return false;toast('Saving files is not available here');return false}}
+
+/* ---------- templates ---------- */
+function details(){const L=[];if(S.settings.date)L.push('📅 '+fmtDate(S.settings.date));if(S.settings.venue)L.push('📍 '+S.settings.venue);return L.join('\n')}
+function renderTpl(body,g){
+  const m={name:g.name,family:g.family,members:g.count,couple:S.settings.couple,date:fmtDate(S.settings.date),venue:S.settings.venue,details:details()};
+  return String(body).replace(/\{(\w+)\}/g,(x,k)=>k in m?m[k]:x).replace(/[ \t]+\n/g,'\n').replace(/\n{3,}/g,'\n\n').trim()}
+function currentTpl(kind){
+  const id=kind==='invite'?S.settings.tplInvite:S.settings.tplRemind;
+  return S.tpls.find(t=>t.id===id&&t.kind===kind)||S.tpls.find(t=>t.kind===kind)||{id:'',body:'Hi {name}!'}}
+function fixDefaults(){
+  let ch=false;
+  [['invite','tplInvite'],['remind','tplRemind']].forEach(([k,f])=>{
+    if(!S.tpls.some(t=>t.id===S.settings[f]&&t.kind===k)){const t=S.tpls.find(t=>t.kind===k);if(t){S.settings[f]=t.id;ch=true}}});
+  if(ch)touch(S.settings)}
+function pickTpl(kind,id,gid,mode){
+  S.settings[kind==='invite'?'tplInvite':'tplRemind']=id;touch(S.settings);save();
+  if(mode==='queue')renderInvites();else openSend(gid,kind)}
+
+/* ---------- rendering: shared ---------- */
+function inviteTag(g){return g.invited?`<span class="tag yes">✉ Invited ${fmtShort(g.invitedAt)}${g.reminders?' · reminded ×'+g.reminders:''}</span>`:'<span class="tag no">✉ Not invited</span>'}
+function card(g){return `<div class="guest" onclick="openGuest('${g.id}')"><div class="avatar">${esc(initials(g.name))}</div><div class="gmain"><div class="gname">${esc(g.name)}</div><div class="meta">${esc(g.family)} · ${g.count} member${g.count==1?'':'s'}${g.phone?' · '+esc(g.phone):''}</div>${inviteTag(g)}${g.checked?' <span class="check">· ✓ Checked in</span>':''}</div><span class="badge ${statusClass(g.status)}">${esc(g.status)}</span></div>`}
+function applyHeader(){
+  $('hdrSub').textContent=S.settings.couple+' · Guest Manager';$('heroH1').textContent=S.settings.couple;document.title='WedList — '+S.settings.couple;
+  const d=daysLeft();
+  $('heroCd').innerHTML=d===null?`<button class="pill" style="border:0" onclick="openSettings()">◷ Set wedding date</button>`:d>0?`<span class="pill">◷ ${d} day${d==1?'':'s'} to go</span>`:d===0?'<span class="pill">🎉 Today is the day!</span>':`<span class="pill">🤍 Married ${-d} day${d==-1?'':'s'} ago</span>`}
+function updateStats(){
+  const people=sum(S.guests),confirmed=sum(S.guests.filter(g=>g.status==='Confirmed')),checked=sum(S.guests.filter(g=>g.checked)),inv=S.guests.filter(g=>g.invited);
+  $('totalPeople').textContent=people.toLocaleString();$('groups').textContent=S.guests.length.toLocaleString();$('confirmed').textContent=confirmed.toLocaleString();$('checked').textContent=checked.toLocaleString();
+  $('reportSummary').textContent=`${people.toLocaleString()} members across ${S.guests.length} guest groups · ${confirmed.toLocaleString()} confirmed · ${checked.toLocaleString()} checked in · ${inv.length} groups invited.`}
+function sortTasks(a){return a.slice().sort((x,y)=>(x.due||'9999-99-99').localeCompare(y.due||'9999-99-99'))}
+function dueTag(t){
+  if(!t.due)return t.who?`<div class="due">${esc(t.who)}</div>`:'';
+  const td=todayStr(),over=!t.done&&t.due<td,lbl=t.due===td?'Today':fmtShortDate(t.due);
+  return `<div class="due ${over?'over':''}">${over?'Overdue · ':'Due '}${lbl}${t.who?' · '+esc(t.who):''}</div>`}
+function renderHome(){
+  $('recent').innerHTML=S.guests.slice(0,6).map(card).join('')||'<div class="empty">No guests yet.<br><br><button class="primary" onclick="openAdd()">＋ Add your first guest</button></div>';
+  const inv=S.guests.filter(g=>g.invited),wait=inv.filter(g=>g.status==='Not set'||g.status==='Pending'),n=S.guests.length,pct=n?Math.round(inv.length/n*100):0;
+  $('homeInvite').innerHTML=`<div class="summary" style="cursor:pointer" onclick="showPage('invites')"><b>${inv.length} of ${n}</b> groups invited · ${sum(inv).toLocaleString()} of ${sum(S.guests).toLocaleString()} members<div class="bar"><i style="width:${pct}%"></i></div>${wait.length?wait.length+' invited group'+(wait.length==1?'':'s')+' still to reply':'No replies pending'} · tap to send invites</div>`;
+  const open=sortTasks(S.tasks.filter(t=>!t.done)).slice(0,3),done=S.tasks.filter(t=>t.done).length;
+  $('homeTasks').innerHTML=open.length?open.map(taskRow).join(''):`<div class="empty">${S.tasks.length?'All '+done+' tasks done 🎉':'No tasks yet.'}</div>`}
+function refresh(){updateStats();applyHeader();renderHome();
+  if(curPage==='guests')renderGuests();if(curPage==='invites')renderInvites();if(curPage==='plan')renderPlan();if(curPage==='checkin')renderCheck()}
+
+/* ---------- navigation ---------- */
+let curPage='home',activeFilter='all',invMode='invite',invPhone='all',focusId=null,taskFilter='todo';const skip=new Set();
+function showPage(p){curPage=p;document.querySelectorAll('.page').forEach(x=>x.classList.remove('active'));$(p).classList.add('active');document.querySelectorAll('.nav').forEach(x=>x.classList.toggle('active',x.dataset.page===p));
+  refresh();if(p==='reports')updateStats();scrollTo({top:0,behavior:'smooth'})}
+function focusSearch(){setTimeout(()=>$('search').focus(),80)}
+function focusCheck(){setTimeout(()=>$('checkSearch').focus(),80)}
+
+/* ---------- guests ---------- */
+function renderGuests(){
+  const q=($('search').value||'').toLowerCase();
+  const arr=S.guests.filter(g=>{
+    const f=activeFilter;
+    const ok=f==='all'||(f==='inv:no'?!g.invited:f==='inv:yes'?g.invited:g.status===f);
+    return ok&&[g.name,g.family,g.phone].join(' ').toLowerCase().includes(q)});
+  $('guestList').innerHTML=arr.length?arr.map(card).join(''):(S.guests.length?'<div class="empty">No guests found.</div>':'<div class="empty">Your guest list is empty.<br><br><button class="primary" onclick="openAdd()">＋ Add your first guest</button></div>')}
+document.querySelectorAll('.chip[data-filter]').forEach(c=>c.onclick=()=>{document.querySelectorAll('.chip[data-filter]').forEach(x=>x.classList.remove('active'));c.classList.add('active');activeFilter=c.dataset.filter;renderGuests()});
+function openGuest(id){
+  const g=G(id);if(!g)return;
+  openModal(`<div style="display:flex;gap:13px;align-items:center;padding:6px 0 14px"><div class="avatar" style="width:58px;height:58px">${esc(initials(g.name))}</div><div><h2 style="margin:0">${esc(g.name)}</h2><div class="meta">${esc(g.family)}</div></div></div>
+<div class="detail"><div class="info"><small>Invitation</small><b>${g.invited?'Invited '+fmtShort(g.invitedAt):'Not invited'}</b></div><div class="info"><small>Reminders sent</small><b>${g.reminders||0}${g.remindedAt?' · '+fmtShort(g.remindedAt):''}</b></div></div>
+<div class="field" style="margin-top:12px"><label>Name</label><input id="eName" value="${esc(g.name)}"></div>
+<div class="row"><div class="field"><label>Members</label><input id="eCount" type="number" min="1" value="${g.count}"></div><div class="field"><label>Phone</label><input id="ePhone" inputmode="tel" placeholder="+91…" value="${esc(g.phone)}"></div></div>
+<div class="field"><label>Family / group</label><input id="eFamily" value="${esc(g.family)}"></div>
+<div class="field"><label>RSVP status</label><select id="eStatus">${RSVP.map(s=>`<option ${g.status===s?'selected':''}>${s}</option>`).join('')}</select></div>
+<div class="field"><label>Notes</label><textarea id="eNotes" rows="3">${esc(g.notes||'')}</textarea></div>
+<div class="actions"><button class="primary" onclick="saveGuest('${g.id}')">Save</button><button class="secondary" onclick="toggleCheck('${g.id}')">${g.checked?'Undo check-in':'Check in'}</button></div>
+<div class="actions"><button class="secondary" onclick="openSend('${g.id}')">✉ ${g.invited?'Send reminder':'Send invite'}</button><button class="secondary" onclick="toggleInvited('${g.id}')">${g.invited?'Undo “invited”':'Mark invited'}</button></div>
+<div class="actions"><button class="danger" style="grid-column:1/3" onclick="deleteGuest('${g.id}')">Delete</button></div>
+${g.u?`<div class="hint">Last changed ${new Date(g.u).toLocaleString('en-IN',{day:'numeric',month:'short',hour:'numeric',minute:'2-digit'})}${g.by?' by '+esc(g.by):''}</div>`:''}`)}
+function saveGuest(id,keepOpen){
+  const g=G(id);if(!g||!$('eName'))return true;
+  const name=$('eName').value.trim();if(!name){toast('Enter a guest name');return false}
+  Object.assign(g,{name:str(name,120),count:Math.max(1,parseInt($('eCount').value)||1),phone:str($('ePhone').value.trim(),32),family:str($('eFamily').value.trim(),80)||'Unassigned',status:$('eStatus').value,notes:str($('eNotes').value,1000)});
+  touch(g);save();refresh();if(!keepOpen){closeModal();toast('Guest updated ✓')}return true}
+function toggleCheck(id){const g=G(id);g.checked=!g.checked;touch(g);save();refresh();if($('modal').classList.contains('open'))openGuest(id);toast(g.checked?'Checked in ✓':'Check-in removed')}
+function toggleInvited(id){const g=G(id);if(g.invited){g.invited=false;g.invitedAt=0;g.reminders=0;g.remindedAt=0}else{g.invited=true;g.invitedAt=now()}touch(g);save();refresh();openGuest(id)}
+function openAdd(fam){
+  openModal(`<h2>Add guest group</h2><div class="field"><label>Name</label><input id="newName" placeholder="Guest / family name"></div><div class="row"><div class="field"><label>Members</label><input id="newCount" type="number" min="1" value="1"></div><div class="field"><label>Phone</label><input id="newPhone" inputmode="tel" placeholder="+91…"></div></div><div class="field"><label>Family / group</label><input id="newFamily" placeholder="Group name" value="${esc(typeof fam==='string'?fam:'')}"></div><div class="field"><label>RSVP</label><select id="newStatus">${RSVP.map(s=>`<option>${s}</option>`).join('')}</select></div><div class="actions"><button class="primary" onclick="addGuest()">Add guest group</button><button class="secondary" onclick="addGuest(true)">Add &amp; add another</button></div>`);
+  setTimeout(()=>{const n=$('newName');if(n)n.focus()},60)}
+function addGuest(more){
+  const name=$('newName').value.trim();if(!name)return toast('Enter a guest name');
+  const g=baseGuest({id:uid('n'),name,count:+$('newCount').value||1,phone:$('newPhone').value.trim(),family:$('newFamily').value.trim(),status:$('newStatus').value});
+  touch(g);S.guests.unshift(g);save();refresh();if(more){openAdd(g.family==='Unassigned'?'':g.family);toast('Added ✓ — next guest')}else{closeModal();toast('Guest added ✓')}}
+function deleteGuest(id){askConfirm('Delete this guest group?','Delete',()=>{S.deleted[id]=now();S.guests=S.guests.filter(g=>g.id!==id);save();refresh();toast('Guest deleted')},()=>openGuest(id))}
+
+/* ---------- check-in ---------- */
+function renderCheck(){
+  const q=($('checkSearch').value||'').toLowerCase();
+  const arr=q?S.guests.filter(g=>(g.name+' '+g.family+' '+g.phone).toLowerCase().includes(q)):[];
+  $('checkResults').innerHTML=arr.length?arr.slice(0,20).map(g=>`<div class="guest"><div class="avatar">${esc(initials(g.name))}</div><div class="gmain"><div class="gname">${esc(g.name)}</div><div class="meta">${esc(g.family)} · ${g.count} members</div></div><button class="${g.checked?'secondary':'primary'}" onclick="toggleCheck('${g.id}')">${g.checked?'✓ Done':'Check in'}</button></div>`).join(''):'<div class="empty">Start typing to find a guest.</div>'}
+
+/* ---------- invitations ---------- */
+function queueFor(mode){
+  let a=mode==='invite'?S.guests.filter(g=>!g.invited):S.guests.filter(g=>g.invited&&(g.status==='Not set'||g.status==='Pending'));
+  if(mode==='remind')a=a.slice().sort((x,y)=>(x.remindedAt||x.invitedAt)-(y.remindedAt||y.invitedAt));
+  return a}
+function sendPanel(g,kind,mode){
+  const tpls=S.tpls.filter(t=>t.kind===kind),cur=currentTpl(kind),msg=renderTpl(cur.body,g),lbl=kind==='invite'?'invited':'reminded';
+  return `${mode==='modal'?`<div class="seg"><button class="${kind==='invite'?'on':''}" onclick="openSend('${g.id}','invite')">Invitation</button><button class="${kind==='remind'?'on':''}" onclick="openSend('${g.id}','remind')">Reminder</button></div>`:''}
+<div class="field"><label>Template</label><select id="tplSel-${mode}" onchange="pickTpl('${kind}',this.value,'${g.id}','${mode}')">${tpls.map(t=>`<option value="${esc(t.id)}" ${t.id===cur.id?'selected':''}>${esc(t.title)}</option>`).join('')}</select></div>
+<div class="field"><label>Message — you can edit it before sending</label><textarea id="msgText-${mode}" rows="7">${esc(msg)}</textarea></div>
+${g.phone?`<div class="hint">WhatsApp number: ${esc(g.phone)}</div>`:`<div class="field"><label>Phone number (10-digit Indian number or with country code)</label><input id="sendPhone-${mode}" inputmode="tel" placeholder="98xxxxxxxx"></div>`}
+<div class="actions"><button class="primary" onclick="sendWA('${g.id}','${kind}','${mode}')">WhatsApp</button><button class="secondary" onclick="copyMsg('${mode}')">Copy message</button></div>
+<div id="confirmRow-${mode}" class="confirm" style="display:none"><div class="meta" style="margin:0">Did the message go out?</div><div class="actions"><button class="primary" onclick="markSent('${g.id}','${kind}','${mode}')">✓ Yes, mark ${lbl}</button><button class="secondary" onclick="$('confirmRow-${mode}').style.display='none'">Not yet</button></div></div>
+<div class="actions"><button class="secondary" onclick="markSent('${g.id}','${kind}','${mode}')">${kind==='invite'?'Invited in person / by call':'Reminded by call'}</button>${mode==='queue'?`<button class="secondary" onclick="skipCurrent('${g.id}')">Skip →</button>`:`<button class="secondary" onclick="closeModal()">Close</button>`}</div>`}
+function openSend(id,kind){const g=G(id);if(!g)return;if(!saveGuest(id,true))return;openModal(`<h2>Message ${esc(g.name)}</h2>${sendPanel(g,kind||(g.invited?'remind':'invite'),'modal')}`)}
+function sendWA(id,kind,mode){
+  const g=G(id);let phone=g.phone;const inp=$('sendPhone-'+mode);
+  if(inp&&inp.value.trim()){phone=inp.value.trim();g.phone=str(phone,32);touch(g);save()}
+  if(!phone)return toast('Add a phone number first');
+  const n=waNumber(phone);if(n.length<11)return toast('Check the phone number — add the country code');
+  const w=window.open('https://wa.me/'+n+'?text='+encodeURIComponent($('msgText-'+mode).value),'_blank');
+  if(!w)toast('WhatsApp was blocked here — tap “Copy message” and paste it in WhatsApp');
+  $('confirmRow-'+mode).style.display='block'}
+async function copyMsg(mode){toast(await copyText($('msgText-'+mode).value)?'Message copied ✓':'Could not copy — select the text manually')}
+function markSent(id,kind,mode){
+  const g=G(id),t=now();
+  if(kind==='invite'){if(!g.invited){g.invited=true;g.invitedAt=t}}
+  else{g.reminders=(g.reminders||0)+1;g.remindedAt=t;if(!g.invited){g.invited=true;g.invitedAt=t}}
+  touch(g);save();focusId=null;if(mode==='modal')closeModal();refresh();toast(kind==='invite'?'Marked as invited ✓':'Reminder logged ✓')}
+function skipCurrent(id){skip.add(id);focusId=null;renderInvites()}
+function setInvMode(m){invMode=m;focusId=null;renderInvites()}
+function setInvPhone(v){invPhone=v;focusId=null;renderInvites()}
+function focusGuest(id){focusId=id;renderInvites();scrollTo({top:0,behavior:'smooth'})}
+function renderInvites(){
+  if(!S.guests.length){$('invBody').innerHTML='<div class="empty">Add your guests first, then send invitations from here.<br><br><button class="primary" onclick="openAdd()">＋ Add a guest</button></div>';return}
+  const n=S.guests.length,inv=S.guests.filter(g=>g.invited),wait=inv.filter(g=>g.status==='Not set'||g.status==='Pending'),pct=n?Math.round(inv.length/n*100):0;
+  const qi=queueFor('invite'),qr=queueFor('remind');
+  let q=invMode==='invite'?qi:qr;
+  q=q.filter(g=>invPhone==='all'||(invPhone==='phone'?!!g.phone:!g.phone));
+  q=[...q.filter(g=>!skip.has(g.id)),...q.filter(g=>skip.has(g.id))];
+  const cur=(focusId&&q.find(g=>g.id===focusId))||q[0],kind=invMode==='invite'?'invite':'remind',idx=cur?q.indexOf(cur):0;
+  const chip=(v,l)=>`<button class="chip ${invPhone===v?'active':''}" onclick="setInvPhone('${v}')">${l}</button>`;
+  let h=`<div class="summary"><b>${inv.length} of ${n}</b> groups invited · ${sum(inv).toLocaleString()} of ${sum(S.guests).toLocaleString()} members<div class="bar"><i style="width:${pct}%"></i></div>${wait.length} invited group${wait.length==1?'':'s'} (${sum(wait)} members) still to reply</div>
+<div class="seg"><button class="${invMode==='invite'?'on':''}" onclick="setInvMode('invite')">To invite · ${qi.length}</button><button class="${invMode==='remind'?'on':''}" onclick="setInvMode('remind')">Reminders · ${qr.length}</button></div>
+<div class="filters">${chip('all','Everyone')}${chip('phone','Has phone')}${chip('nophone','No phone yet')}</div>`;
+  if(cur){
+    h+=`<div class="qcard"><div class="eyebrow">${invMode==='invite'?'Next to invite':'Next reminder'} · ${idx+1} of ${q.length}</div><div class="qname">${esc(cur.name)}</div><div class="meta" style="margin-bottom:12px">${esc(cur.family)} · ${cur.count} member${cur.count==1?'':'s'} · RSVP: ${esc(cur.status)}${cur.invited?' · invited '+fmtShort(cur.invitedAt)+(cur.reminders?' · reminded ×'+cur.reminders:''):''}</div>${sendPanel(cur,kind,'queue')}</div>`;
+    const rest=q.filter(g=>g.id!==cur.id).slice(0,8);
+    if(rest.length)h+=`<div class="sectionhead" style="margin-top:18px"><h2>Up next</h2></div>`+rest.map(g=>`<div class="guest" onclick="focusGuest('${g.id}')"><div class="avatar">${esc(initials(g.name))}</div><div class="gmain"><div class="gname">${esc(g.name)}</div><div class="meta">${esc(g.family)} · ${g.count} member${g.count==1?'':'s'}${g.phone?' · '+esc(g.phone):' · no phone'}</div></div>›</div>`).join('');
+  }else{
+    h+=`<div class="empty">${invMode==='invite'?(invPhone==='all'?'Everyone has been invited 🎉':'No one left in this filter.'):(invPhone==='all'?'No reminders due — everyone invited has replied.':'No one left in this filter.')}</div>`}
+  $('invBody').innerHTML=h}
+
+/* ---------- template editor ---------- */
+let curTplId=null;
+function openTemplates(id){
+  if(id==='new'){const t={id:uid('tpl'),title:'New template',kind:'invite',body:'Hi {name}, you are invited to the wedding of {couple}!\n\n{details}',u:0};touch(t);S.tpls.push(t);save();id=t.id}
+  curTplId=S.tpls.some(t=>t.id===id)?id:S.tpls[0].id;const t=S.tpls.find(x=>x.id===curTplId),builtin=DEFAULT_TPL.some(d=>d.id===t.id);
+  openModal(`<h2>Message templates</h2>
+<div class="filters">${S.tpls.map(x=>`<button class="chip ${x.id===curTplId?'active':''}" onclick="openTemplates('${x.id}')">${esc(x.title)}</button>`).join('')}<button class="chip" onclick="openTemplates('new')">＋ New</button></div>
+<div class="field" style="margin-top:12px"><label>Title</label><input id="tTitle" value="${esc(t.title)}"></div>
+<div class="field"><label>Used for</label><select id="tKind"><option value="invite" ${t.kind==='invite'?'selected':''}>Invitation</option><option value="remind" ${t.kind==='remind'?'selected':''}>Reminder</option></select></div>
+<div class="field"><label>Message</label><textarea id="tBody" rows="8" oninput="tplPreview()">${esc(t.body)}</textarea></div>
+<div class="hint">Tap to insert a placeholder — each one is filled in per guest:</div>
+<div class="phs">${PLACEHOLDERS.map(p=>`<button class="chip" onclick="insertPH('${p}')">${p}</button>`).join('')}</div>
+<div class="hint">{details} adds the date and venue lines when you have set them in Wedding details.</div>
+<div class="hint" style="margin-top:10px">Preview</div><div class="msgbox" id="tPrev"></div>
+<div class="actions"><button class="primary" onclick="saveTpl()">Save template</button>${builtin?`<button class="secondary" onclick="resetTpl()">Reset to original</button>`:`<button class="danger" onclick="delTpl()">Delete</button>`}</div>
+${builtin?`<div class="actions"><button class="danger" style="grid-column:1/3" onclick="delTpl()">Delete</button></div>`:''}
+<div class="hint">Choose which template is used when sending from the Invites tab.</div>`);
+  tplPreview()}
+function tplPreview(){const g=S.guests[0]||{name:'Guest name',family:'Family',count:4};$('tPrev').textContent=renderTpl($('tBody').value,g)}
+function insertPH(p){const t=$('tBody'),s=t.selectionStart,e=t.selectionEnd;t.value=t.value.slice(0,s)+p+t.value.slice(e);t.focus();t.selectionStart=t.selectionEnd=s+p.length;tplPreview()}
+function saveTpl(){
+  const t=S.tpls.find(x=>x.id===curTplId),kind=$('tKind').value,body=$('tBody').value.trim();
+  if(!body)return toast('Write a message first');
+  if(kind!==t.kind&&!S.tpls.some(x=>x.kind===t.kind&&x.id!==t.id))return toast('Keep at least one '+(t.kind==='invite'?'invitation':'reminder')+' template');
+  Object.assign(t,{title:str($('tTitle').value.trim(),60)||'Untitled',kind,body:str(body,2000)});touch(t);fixDefaults();save();openTemplates(t.id);toast('Template saved ✓')}
+function resetTpl(){const d=DEFAULT_TPL.find(x=>x.id===curTplId),t=S.tpls.find(x=>x.id===curTplId);Object.assign(t,{title:d.title,kind:d.kind,body:d.body});touch(t);fixDefaults();save();openTemplates(t.id);toast('Template reset ✓')}
+function delTpl(){
+  const t=S.tpls.find(x=>x.id===curTplId);
+  if(!S.tpls.some(x=>x.kind===t.kind&&x.id!==t.id))return toast('Keep at least one '+(t.kind==='invite'?'invitation':'reminder')+' template');
+  askConfirm('Delete the template “'+t.title+'”?','Delete',()=>{S.deleted[t.id]=now();S.tpls=S.tpls.filter(x=>x.id!==t.id);fixDefaults();save();openTemplates();toast('Template deleted')},()=>openTemplates(t.id))}
+
+/* ---------- plan: countdown + tasks ---------- */
+function taskRow(t){return `<div class="task ${t.done?'done':''}"><button class="tick" aria-label="${t.done?'Mark not done':'Mark done'}" onclick="toggleTask('${t.id}')">${t.done?'✓':''}</button><div class="tmain" onclick="openTask('${t.id}')"><div class="tt">${esc(t.title)}</div>${dueTag(t)}</div></div>`}
+function renderPlan(){
+  const d=daysLeft(),s=S.settings;
+  let cd;
+  if(d===null)cd=`<div class="hero cd"><div class="eyebrow">Countdown</div><div class="lbl" style="margin:10px 0 14px">Set your wedding date to start the countdown.</div><button class="primary" onclick="openSettings()">Set wedding date</button></div>`;
+  else{const big=d>0?d:d===0?'🎉':'🤍',lbl=d>0?(d==1?'day to go':'days to go')+(d>=14?` · about ${Math.round(d/7)} weeks`:''):d===0?'Today is the day!':`Married ${-d} day${d==-1?'':'s'} ago`;
+    cd=`<div class="hero cd"><div class="eyebrow">Countdown</div><div class="big" style="margin-top:8px">${big}</div><div class="lbl">${lbl}</div><div class="when">${esc(fmtDate(s.date))}${s.venue?'<br><span style="font-weight:600;color:var(--muted)">📍 '+esc(s.venue)+'</span>':''}</div></div>`}
+  const tot=S.tasks.length,done=S.tasks.filter(t=>t.done).length,pct=tot?Math.round(done/tot*100):0;
+  let list=taskFilter==='todo'?sortTasks(S.tasks.filter(t=>!t.done)):taskFilter==='done'?S.tasks.filter(t=>t.done):sortTasks(S.tasks);
+  const chip=(v,l)=>`<button class="chip ${taskFilter===v?'active':''}" onclick="setTaskFilter('${v}')">${l}</button>`;
+  $('planBody').innerHTML=cd+`<div class="summary"><b>${done} of ${tot}</b> tasks done<div class="bar"><i style="width:${pct}%"></i></div></div>
+<div class="addtask"><input id="taskTitle" placeholder="Add a task…" onkeydown="if(event.key==='Enter')addTask()"><button class="primary" onclick="addTask()">Add</button><div class="d"><label>Due date (optional)</label><input id="taskDue" type="date"></div></div>
+<div class="filters">${chip('todo','To do · '+(tot-done))}${chip('done','Done · '+done)}${chip('all','All')}</div>
+${list.length?list.map(taskRow).join(''):`<div class="empty">${taskFilter==='done'?'Nothing completed yet.':'Nothing here — add a task above.'}</div>`}`}
+function setTaskFilter(v){taskFilter=v;renderPlan()}
+function addTask(){
+  const title=$('taskTitle').value.trim();if(!title)return toast('Type a task first');
+  const t={id:uid('t'),title:str(title,120),due:DATE_OK.test($('taskDue').value)?$('taskDue').value:'',who:'',done:false,u:0,by:''};
+  touch(t);S.tasks.push(t);save();refresh();setTimeout(()=>$('taskTitle')&&$('taskTitle').focus(),50)}
+function toggleTask(id){const t=S.tasks.find(x=>x.id===id);t.done=!t.done;touch(t);save();refresh()}
+function openTask(id){
+  const t=S.tasks.find(x=>x.id===id);if(!t)return;
+  openModal(`<h2>Edit task</h2><div class="field"><label>Task</label><input id="tkTitle" value="${esc(t.title)}"></div><div class="row"><div class="field"><label>Due date</label><input id="tkDue" type="date" value="${esc(t.due)}"></div><div class="field"><label>Who is handling it</label><input id="tkWho" placeholder="e.g. Ikka" value="${esc(t.who)}"></div></div><div class="actions"><button class="primary" onclick="saveTask('${t.id}')">Save</button><button class="secondary" onclick="toggleTask('${t.id}');closeModal()">${t.done?'Mark not done':'Mark done'}</button></div><div class="actions"><button class="danger" style="grid-column:1/3" onclick="deleteTask('${t.id}')">Delete task</button></div>`)}
+function saveTask(id){const t=S.tasks.find(x=>x.id===id),title=$('tkTitle').value.trim();if(!title)return toast('Enter a task');Object.assign(t,{title:str(title,120),due:DATE_OK.test($('tkDue').value)?$('tkDue').value:'',who:str($('tkWho').value.trim(),40)});touch(t);save();refresh();closeModal();toast('Task saved ✓')}
+function deleteTask(id){askConfirm('Delete this task?','Delete',()=>{S.deleted[id]=now();S.tasks=S.tasks.filter(t=>t.id!==id);save();refresh();toast('Task deleted')},()=>openTask(id))}
+
+/* ---------- settings ---------- */
+function openSettings(){
+  const s=S.settings;
+  openModal(`<h2>Wedding details</h2>
+<div class="field"><label>Couple names (used in messages)</label><input id="sCouple" value="${esc(s.couple)}"></div>
+<div class="row"><div class="field"><label>Wedding date</label><input id="sDate" type="date" value="${esc(s.date)}"></div><div class="field"><label>Venue</label><input id="sVenue" placeholder="e.g. Hall name, town" value="${esc(s.venue)}"></div></div>
+<div class="field"><label>Your name (shown on changes you make)</label><input id="sMe" placeholder="e.g. Adul" value="${esc(S.device.me)}"></div>
+<button class="primary" style="width:100%" onclick="saveSettings()">Save</button>
+<div class="actions"><button class="secondary" onclick="openTemplates()">Message templates</button><button class="secondary" onclick="openSync()">Family sync</button></div>
+<div class="summary" style="margin-top:14px">Guest list: ${S.guests.length} group${S.guests.length==1?'':'s'} · ${sum(S.guests).toLocaleString()} members. Changes are saved in this browser${storageOK?'':' — <b>but saving looks blocked here, so use a backup</b>'}.</div>`)}
+function saveSettings(){
+  const s=S.settings,c=$('sCouple').value.trim();if(!c)return toast('Enter the couple names');
+  Object.assign(s,{couple:str(c,60),date:DATE_OK.test($('sDate').value)?$('sDate').value:'',venue:str($('sVenue').value.trim(),120)});touch(s);
+  S.device.me=str($('sMe').value.trim(),40);save();refresh();closeModal();toast('Saved ✓')}
+
+/* ---------- export / reset ---------- */
+function exportCSV(status){
+  const arr=status==='Confirmed'?S.guests.filter(g=>g.status==='Confirmed'):status==='Checked In'?S.guests.filter(g=>g.checked):status==='Not invited'?S.guests.filter(g=>!g.invited):S.guests;
+  const rows=[['Name','Members','Phone','Family / Group','RSVP','Invited','Invited On','Reminders','Checked In','Notes'],...arr.map(g=>[g.name,g.count,g.phone,g.family,g.status,g.invited?'Yes':'No',g.invitedAt?new Date(g.invitedAt).toISOString().slice(0,10):'',g.reminders||0,g.checked?'Yes':'No',g.notes||''])];
+  const csv=rows.map(r=>r.map(v=>'"'+String(v??'').replace(/"/g,'""')+'"').join(',')).join('\n');
+  saveFile('wedlist-guests.csv','\ufeff'+csv).then(ok=>{if(ok)toast('CSV exported ✓')})}
+function resetData(){askConfirm('Remove ALL guests and start with an empty list? RSVPs, invites and check-ins for them will be lost.','Remove all guests',doReset)}
+function doReset(){
+  const t=now();
+  S.guests.forEach(g=>{S.deleted[g.id]=t});
+  S.guests=ORIGINAL.map(o=>{const g=baseGuest(o);g.u=t;g.by=str(S.device.me,40);delete S.deleted[g.id];return g});
+  save();refresh();toast('Guest list cleared')}
+
+/* ---------- family sync ---------- */
+const b64=u8=>{let s='';for(let i=0;i<u8.length;i+=0x8000)s+=String.fromCharCode.apply(null,u8.subarray(i,i+0x8000));return btoa(s)};
+const unb64=s=>{const b=atob(s.replace(/\s+/g,'')),u=new Uint8Array(b.length);for(let i=0;i<b.length;i++)u[i]=b.charCodeAt(i);return u};
+async function encodeCode(obj){
+  let out=new TextEncoder().encode(JSON.stringify(obj)),tag='WL1';
+  if(typeof CompressionStream!=='undefined'){try{out=new Uint8Array(await new Response(new Blob([out]).stream().pipeThrough(new CompressionStream('gzip'))).arrayBuffer());tag='WL2'}catch(e){out=new TextEncoder().encode(JSON.stringify(obj));tag='WL1'}}
+  return tag+':'+b64(out)+'~'}
+async function decodeCode(text){
+  const m=String(text).match(/WL([12]):([A-Za-z0-9+/=\s]+?)~/);if(!m)throw new Error('no code');
+  let u=unb64(m[2]);
+  if(m[1]==='2'){if(typeof DecompressionStream==='undefined')throw new Error('nogz');u=new Uint8Array(await new Response(new Blob([u]).stream().pipeThrough(new DecompressionStream('gzip'))).arrayBuffer())}
+  return JSON.parse(new TextDecoder().decode(u))}
+function buildPayload(full){
+  const ch=r=>full||r.u>0;
+  return{app:'wedlist',v:2,from:S.device.me||'',at:now(),full:!!full,guests:S.guests.filter(ch),tasks:S.tasks.filter(ch),tpls:S.tpls.filter(ch),settings:(full||S.settings.u>0)?S.settings:null,deleted:S.deleted}}
+const cleanGuest=r=>(r&&ID_OK.test(r.id||''))?baseGuest(r):null;
+const cleanTask=r=>(r&&ID_OK.test(r.id||'')&&String(r.title||'').trim())?{id:r.id,title:str(r.title,120),due:DATE_OK.test(r.due||'')?r.due:'',who:str(r.who,40),done:!!r.done,u:num(r.u),by:str(r.by,40)}:null;
+const cleanTpl=r=>(r&&ID_OK.test(r.id||'')&&String(r.body||'').trim())?{id:r.id,title:str(r.title,60)||'Untitled',kind:r.kind==='remind'?'remind':'invite',body:str(r.body,2000),u:num(r.u)}:null;
+function cleanSettings(r){if(!r||typeof r!=='object')return null;return{couple:str(r.couple,60)||'Wedding',date:DATE_OK.test(r.date||'')?r.date:'',venue:str(r.venue,120),tplInvite:ID_OK.test(r.tplInvite||'')?r.tplInvite:'tpl_en_invite',tplRemind:ID_OK.test(r.tplRemind||'')?r.tplRemind:'tpl_en_remind',u:num(r.u)}}
+function mergeIn(p,apply){
+  if(!p||p.app!=='wedlist')throw new Error('not wedlist');
+  const stat={g:{add:0,upd:0,del:0},t:{add:0,upd:0,del:0},p:{add:0,upd:0,del:0},s:0};
+  const tomb={...S.deleted},inT=p.deleted&&typeof p.deleted==='object'?p.deleted:{};
+  Object.keys(inT).slice(0,10000).forEach(k=>{if(ID_OK.test(k)){const v=num(inT[k]);if(v>(tomb[k]||0))tomb[k]=v}});
+  const run=(local,inc,clean,st,front)=>{
+    const idx=new Map(local.map(r=>[r.id,r])),adds=[];
+    (Array.isArray(inc)?inc.slice(0,5000):[]).forEach(raw=>{
+      const r=clean(raw);if(!r)return;const tb=tomb[r.id]||0;if(tb>0&&tb>=r.u)return;
+      const cur=idx.get(r.id);
+      if(!cur){st.add++;adds.push(r)}else if(r.u>cur.u){st.upd++;if(apply)Object.assign(cur,r)}});
+    const gone=new Set(local.filter(r=>{const tb=tomb[r.id]||0;return tb>0&&tb>=r.u}).map(r=>r.id));
+    st.del=gone.size;
+    if(apply){for(let i=local.length-1;i>=0;i--)if(gone.has(local[i].id))local.splice(i,1);if(front)adds.slice().reverse().forEach(r=>local.unshift(r));else adds.forEach(r=>local.push(r))}};
+  run(S.guests,p.guests,cleanGuest,stat.g,true);run(S.tasks,p.tasks,cleanTask,stat.t,false);run(S.tpls,p.tpls,cleanTpl,stat.p,false);
+  const ns=cleanSettings(p.settings);if(ns&&ns.u>S.settings.u){stat.s=1;if(apply)S.settings=ns}
+  if(apply){S.deleted=tomb;if(!S.tpls.length)S.tpls=freshState().tpls;fixDefaults()}
+  return stat}
+let pendingMerge=null,lastCode='';
+async function openSync(){
+  const p=buildPayload(false),changed=p.guests.length+p.tasks.length+p.tpls.length;
+  openModal(`<h2>Family sync</h2>
+<div class="note info">Each person opens the same WedList link and works on their own copy. To combine, one person sends a <b>sync code</b> (paste it in WhatsApp) and the other pastes it below. If two people change the same guest or task, the most recent edit wins.</div>
+${storageOK?'':'<div class="note">This browser is not saving changes here — save a backup file regularly.</div>'}
+<div class="field"><label>Your name (so others see who changed what)</label><input id="syncMe" placeholder="e.g. Fatima" value="${esc(S.device.me)}" onchange="S.device.me=str(this.value.trim(),40);save();prepareCode()"></div>
+${LIVE?`<h3>Live sync</h3><div id="liveBox">${liveHTML()}</div><div class="hint" style="margin-top:14px">Prefer not to use live sync, or offline? The sync-code method below always works.</div>`:''}
+<h3>Send my updates</h3>
+<textarea id="syncOut" class="code" rows="3" readonly onclick="this.select()" placeholder="Preparing code…"></textarea>
+<div class="actions"><button class="primary" onclick="copyCode()">Copy code</button><button class="secondary" id="shareBtn" style="display:none" onclick="shareCode()">Share…</button></div>
+<div class="hint" id="syncInfo">${changed} change${changed==1?'':'s'} to share (guests, tasks and templates you have edited).</div>
+<h3>Get updates from family</h3>
+<textarea id="syncIn" class="code" rows="3" placeholder="Paste a sync code here"></textarea>
+<div class="actions"><button class="primary" onclick="previewCode()">Check code</button><button class="secondary" onclick="$('fileIn').click()">Load backup file…</button></div>
+<div id="syncPreview"></div>
+<h3>Backup</h3>
+<div class="actions"><button class="secondary" style="grid-column:1/3" onclick="exportBackup()">Save full backup file</button></div>
+<div class="note">Anyone who has this page's link can see the guest list and phone numbers. Only share the link with family you trust.</div>`);
+  if(navigator.share)$('shareBtn').style.display='';
+  prepareCode()}
+async function prepareCode(){
+  const out=$('syncOut');if(!out)return;
+  try{const p=buildPayload(false);lastCode=await encodeCode(p);const head='WedList update'+(S.device.me?' from '+S.device.me:'')+' — paste this in WedList › Family sync:\n\n';out.value=head+lastCode;
+    const c=p.guests.length+p.tasks.length+p.tpls.length;$('syncInfo').textContent=`${c} change${c==1?'':'s'} to share · ${Math.round(out.value.length/1024*10)/10} KB of text.`}
+  catch(e){out.value='';toast('Could not prepare the code')}}
+async function copyCode(){const v=$('syncOut').value;if(!v)return toast('Code is still preparing…');toast(await copyText(v)?'Copied — paste it in WhatsApp ✓':'Could not copy — tap the box and copy it')}
+async function shareCode(){const v=$('syncOut').value;if(!v)return;try{await navigator.share({text:v})}catch(e){if(e&&e.name==='AbortError')return;toast(await copyText(v)?'Copied — paste it in WhatsApp ✓':'Could not share')}}
+async function exportBackup(){const ok=await saveFile('wedlist-backup-'+todayStr()+'.json',JSON.stringify(buildPayload(true)));if(ok)toast('Backup saved ✓')}
+function loadFile(inp){const f=inp.files&&inp.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{inp.value='';if(!$('syncPreview'))openSync().then(()=>previewText(String(r.result)));else previewText(String(r.result))};r.onerror=()=>toast('Could not read that file');r.readAsText(f)}
+function previewCode(){const t=$('syncIn').value.trim();if(!t)return toast('Paste a code first');previewText(t)}
+async function previewText(t){
+  const box=$('syncPreview');if(!box)return;
+  try{
+    const p=t.trim()[0]==='{'?JSON.parse(t):await decodeCode(t),st=mergeIn(p,false);pendingMerge=p;
+    const parts=[];
+    if(st.g.add)parts.push(st.g.add+' new guest group'+(st.g.add==1?'':'s'));if(st.g.upd)parts.push(st.g.upd+' guest update'+(st.g.upd==1?'':'s'));if(st.g.del)parts.push(st.g.del+' guest'+(st.g.del==1?'':'s')+' removed');
+    if(st.t.add||st.t.upd||st.t.del)parts.push((st.t.add+st.t.upd)+' task change'+(st.t.add+st.t.upd==1?'':'s')+(st.t.del?', '+st.t.del+' removed':''));
+    if(st.p.add||st.p.upd||st.p.del)parts.push((st.p.add+st.p.upd+st.p.del)+' template change'+(st.p.add+st.p.upd+st.p.del==1?'':'s'));
+    if(st.s)parts.push('wedding details');
+    box.innerHTML=parts.length?`<div class="confirm"><div class="meta" style="margin:0"><b>${esc(p.from||'Someone')}</b> sent: ${parts.join(', ')}.</div><div class="actions"><button class="primary" onclick="applyMerge()">Merge now</button><button class="secondary" onclick="pendingMerge=null;$('syncPreview').innerHTML=''">Cancel</button></div></div>`:`<div class="hint">Nothing new in that code — you already have these changes.</div>`}
+  catch(e){pendingMerge=null;box.innerHTML='<div class="note">That doesn\'t look like a WedList sync code or backup file. Copy the whole message, including the part ending with ~.</div>'}}
+function applyMerge(){if(!pendingMerge)return;try{mergeIn(pendingMerge,true);pendingMerge=null;S.device.pushedU=0;save();refresh();closeModal();toast('Merged ✓')}catch(e){toast('Could not merge that code')}}
+
+/* ---------- live sync (Supabase) ---------- */
+const syncSt={last:0,err:'',busy:false,timer:null};
+function sbCall(fn,body){
+  return fetch(SB_URL+'/rest/v1/rpc/'+fn,{method:'POST',headers:{apikey:SB_KEY,Authorization:'Bearer '+SB_KEY,'Content-Type':'application/json'},body:JSON.stringify(body)})
+    .then(async r=>{const t=await r.text();let j=null;try{j=t?JSON.parse(t):null}catch(e){}
+      if(!r.ok){const e=new Error((j&&j.message)||('HTTP '+r.status));e.status=r.status;throw e}return j})}
+function friendlyErr(e){
+  if(e&&(e.status===404||/could not find the function|schema cache/i.test(e.message||'')))return'Database not set up yet — run supabase-setup.sql';
+  if(e&&(e.status===401||e.status===403))return'Supabase rejected the key';
+  if(e&&e.status)return'Server error: '+str(e.message,80);
+  return'Offline or blocked'}
+function setDot(){
+  const d=$('syncDot');if(!d)return;document.body.classList.toggle('live',LIVE&&!!S.device.room);
+  d.className='dot '+(!S.device.room?'off':syncSt.busy?'sync':syncSt.err?(navigator.onLine===false?'off':'err'):syncSt.last?'ok':'sync')}
+function liveHTML(){
+  if(!S.device.room)return`<div class="note info">Create a family room and share its link — everyone who opens it stays in sync automatically, with no codes to paste.</div><button class="primary" style="width:100%" onclick="createRoom()">Create family room</button><div class="field" style="margin-top:12px"><label>Or join with a room code</label><input id="joinCode" placeholder="Paste room code"></div><button class="secondary" style="width:100%" onclick="joinRoom()">Join room</button>`;
+  const st=syncSt.err?`<span style="color:var(--danger)">● ${esc(syncSt.err)}</span>`:syncSt.busy?'● Syncing…':syncSt.last?'<span style="color:#267050">● Connected · synced '+new Date(syncSt.last).toLocaleTimeString('en-IN',{hour:'numeric',minute:'2-digit'})+'</span>':'● Connecting…';
+  return`<div class="summary">${st}<div class="hint" style="margin:6px 0 0">Room code: <span class="code">${esc(S.device.room)}</span></div></div>${location.protocol==='file:'?'<div class="note">This file is opened from your device. Host it online (for example Netlify Drop) so the family link works for other people.</div>':''}<div class="actions"><button class="primary" onclick="copyRoomLink()">Copy family link</button><button class="secondary" onclick="syncNow(true)">Sync now</button></div><div class="actions"><button class="secondary" onclick="copyRoomCode()">Copy room code</button><button class="danger" onclick="leaveRoom()">Leave room</button></div>`}
+function updateSyncUI(){const b=$('liveBox');if(b)b.innerHTML=liveHTML();setDot()}
+function collectPush(since){
+  const R=[],add=(kind,r)=>{if(r.u>0&&r.u>=since)R.push({id:kind+':'+r.id,kind,data:r,u:r.u})};
+  S.guests.forEach(g=>add('guest',g));S.tasks.forEach(t=>add('task',t));S.tpls.forEach(t=>add('tpl',t));
+  if(S.settings.u>0&&S.settings.u>=since)R.push({id:'settings:main',kind:'settings',data:S.settings,u:S.settings.u});
+  Object.keys(S.deleted).forEach(k=>{const ts=S.deleted[k];if(ts>0&&ts>=since)R.push({id:'tomb:'+k,kind:'tomb',data:{id:k},u:ts})});
+  return R}
+async function syncPush(){
+  const since=S.device.pushedU||0,t0=now(),R=collectPush(since);
+  for(let i=0;i<R.length;i+=200)await sbCall('wl_push',{p_room:S.device.room,p_records:R.slice(i,i+200)});
+  S.device.pushedU=t0}
+const fixTs=x=>String(x).replace(/(\.\d{3})\d+/,'$1');
+async function syncPull(){
+  let since=S.device.cursor?new Date(new Date(fixTs(S.device.cursor)).getTime()-5000).toISOString():'1970-01-01T00:00:00Z',maxAt=S.device.cursor||null,changes=0;
+  for(let loop=0;loop<20;loop++){
+    const rows=await sbCall('wl_pull',{p_room:S.device.room,p_since:since});
+    if(!Array.isArray(rows)||!rows.length)break;
+    const p={app:'wedlist',v:2,guests:[],tasks:[],tpls:[],settings:null,deleted:{}};
+    rows.forEach(r=>{
+      if(!r||!r.data)return;
+      if(r.kind==='guest')p.guests.push(r.data);else if(r.kind==='task')p.tasks.push(r.data);else if(r.kind==='tpl')p.tpls.push(r.data);
+      else if(r.kind==='settings'){if(!p.settings||num(r.u)>num(p.settings.u))p.settings=r.data}
+      else if(r.kind==='tomb'&&ID_OK.test(r.data.id||''))p.deleted[r.data.id]=Math.max(p.deleted[r.data.id]||0,num(r.u))});
+    const st=mergeIn(p,true);changes+=st.g.add+st.g.upd+st.g.del+st.t.add+st.t.upd+st.t.del+st.p.add+st.p.upd+st.p.del+st.s;
+    const last=rows[rows.length-1].server_at;if(last&&(!maxAt||String(last)>String(maxAt)))maxAt=last;
+    if(rows.length<2000)break;since=new Date(fixTs(last)).toISOString()}
+  S.device.cursor=maxAt;return changes}
+function softRefresh(){const a=document.activeElement;if($('modal').classList.contains('open')||(a&&/^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName)))pendingRefresh=true;else refresh()}
+function scheduleSync(){clearTimeout(syncSt.timer);syncSt.timer=setTimeout(()=>syncNow(),1500)}
+async function syncNow(manual){
+  if(!LIVE||!S.device.room||syncSt.busy)return;
+  syncSt.busy=true;inSync=true;setDot();
+  try{
+    const n=await syncPull();await syncPush();
+    syncSt.last=now();syncSt.err='';save();
+    if(n>0){softRefresh();toast('Got '+n+' update'+(n==1?'':'s')+' from family ✓')}else if(manual===true)toast('Up to date ✓')}
+  catch(e){syncSt.err=friendlyErr(e);if(manual===true)toast(syncSt.err)}
+  finally{syncSt.busy=false;inSync=false;updateSyncUI()}}
+function joinRoomCode(code){
+  S.device.room=code;S.device.cursor=null;S.device.pushedU=0;save();syncSt.last=0;syncSt.err='';updateSyncUI();syncNow(true);toast('Joined family room ✓')}
+function createRoom(){
+  const al='abcdefghjkmnpqrstuvwxyz23456789',a=new Uint8Array(20);(window.crypto||{getRandomValues:x=>x.forEach((_,i)=>x[i]=Math.random()*256)}).getRandomValues(a);
+  joinRoomCode(Array.from(a,b=>al[b%al.length]).join('').replace(/(.{5})(?=.)/g,'$1-'))}
+function joinRoom(){const c=($('joinCode').value||'').trim();if(!/^[A-Za-z0-9_-]{16,64}$/.test(c))return toast('That room code doesn\'t look right');joinRoomCode(c)}
+function leaveRoom(){askConfirm('Stop live sync on this device? Your guest list stays here, it just won\'t update with the family room.','Leave room',()=>{S.device.room='';S.device.cursor=null;S.device.pushedU=0;save();syncSt.last=0;syncSt.err='';setDot();openSync()},()=>openSync())}
+async function copyRoomLink(){const l=location.origin+location.pathname+'#room='+S.device.room;toast(await copyText(l)?'Family link copied — send it on WhatsApp ✓':'Could not copy the link')}
+async function copyRoomCode(){toast(await copyText(S.device.room)?'Room code copied ✓':'Could not copy')}
+function initLive(){
+  if(!LIVE)return;
+  const m=String(location.hash).match(/room=([A-Za-z0-9_-]{16,64})/);
+  if(m){try{history.replaceState(null,'',location.pathname+location.search)}catch(e){}
+    if(!S.device.room)joinRoomCode(m[1]);else if(S.device.room!==m[1])askConfirm('Switch this device to the family room from the link you opened?','Switch',()=>joinRoomCode(m[1]))}
+  setInterval(()=>{if(!document.hidden)syncNow()},10000);
+  document.addEventListener('visibilitychange',()=>{if(!document.hidden)syncNow()});
+  window.addEventListener('online',()=>syncNow());
+  document.addEventListener('focusout',()=>{if(pendingRefresh)setTimeout(()=>{const a=document.activeElement;if(!$('modal').classList.contains('open')&&!(a&&/^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName))){pendingRefresh=false;refresh()}},250)});
+  setDot();if(S.device.room)syncNow()}
+
+/* ---------- init ---------- */
+fixDefaults();refresh();initLive();
+
 </script></body></html>
