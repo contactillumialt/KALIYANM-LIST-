@@ -47,8 +47,10 @@ header .hbtns{display:flex;gap:8px}
 <button class="primary" onclick="showPage('invites')">✉ Send invites</button>
 <button class="secondary" onclick="showPage('plan')">◷ Countdown &amp; tasks</button>
 <button class="secondary" onclick="showPage('checkin');focusCheck()">✓ Check-in</button>
+<button class="secondary" onclick="showPage('budget')">◫ Budget estimate</button>
 </div>
 <div id="homeInvite"></div>
+<div id="homeBudget"></div>
 <div class="section"><div class="sectionhead"><h2>Next tasks</h2><button class="link" onclick="showPage('plan')">View all</button></div><div id="homeTasks"></div></div>
 <div class="section"><div class="sectionhead"><h2>Guest groups</h2><button class="link" onclick="showPage('guests')">View all</button></div><div id="recent"></div></div>
 </section>
@@ -85,6 +87,11 @@ header .hbtns{display:flex;gap:8px}
 <div id="checkResults"></div>
 </section>
 
+<section id="budget" class="page">
+<div class="sectionhead"><h2>Budget estimate</h2></div>
+<div id="budgetBody"></div>
+</section>
+
 <section id="reports" class="page">
 <div class="sectionhead"><h2>Reports</h2></div>
 <div id="reportSummary" class="summary"></div>
@@ -92,6 +99,7 @@ header .hbtns{display:flex;gap:8px}
 <div class="guest" onclick="exportCSV('Confirmed')"><div class="avatar">✓</div><div class="gmain"><div class="gname">Export confirmed</div><div class="meta">Only confirmed groups</div></div>›</div>
 <div class="guest" onclick="exportCSV('Not invited')"><div class="avatar">✉</div><div class="gmain"><div class="gname">Export not yet invited</div><div class="meta">Groups still waiting for an invitation</div></div>›</div>
 <div class="guest" onclick="exportCSV('Checked In')"><div class="avatar">✓</div><div class="gmain"><div class="gname">Export attendance</div><div class="meta">Groups already checked in</div></div>›</div>
+<div class="guest" onclick="showPage('budget')"><div class="avatar">◫</div><div class="gmain"><div class="gname">Budget estimate</div><div class="meta">Per-head cost, categories and overall total</div></div>›</div>
 <div class="guest" onclick="openSync()"><div class="avatar">⇄</div><div class="gmain"><div class="gname">Family sync &amp; backup</div><div class="meta">Combine changes from family, save a backup</div></div>›</div>
 <div class="guest" onclick="resetData()"><div class="avatar">↺</div><div class="gmain"><div class="gname">Remove all guests</div><div class="meta">Clear the list and start again</div></div>›</div>
 </section>
@@ -124,6 +132,8 @@ const ID_OK=/^[A-Za-z0-9_-]{1,40}$/,DATE_OK=/^\d{4}-\d{2}-\d{2}$/;
 const num=x=>Number.isFinite(+x)?+x:0;
 const str=(v,n)=>String(v??'').slice(0,n);
 const RSVP=['Not set','Pending','Confirmed','Declined'];
+const PAY=['Not started','Advance paid','Paid'];
+const CUR=['₹','$','£','€'];
 let storageOK=true;
 const SB_URL='https://eljlymnbwocrdvklaoih.supabase.co',SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVsamx5bW5id29jcmR2a2xhb2loIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk1NzI4NzUsImV4cCI6MjEwNTE0ODg3NX0.5KM52p27bMZreTQtsDvQUP8edZJEW8S-No3quZjmyck';
 const LIVE=/^https:\/\//.test(SB_URL)&&SB_KEY.length>20;
@@ -135,14 +145,18 @@ const DEFAULT_TPL=[
 {id:'tpl_en_remind',title:'English reminder',kind:'remind',body:'Hi {name}, a gentle reminder about the wedding of {couple}.\n\n{details}\n\nPlease let us know if you and your family can make it. Thank you! 🤍'},
 {id:'tpl_ml_remind',title:'Malayalam reminder',kind:'remind',body:'പ്രിയപ്പെട്ട {name}, {couple} എന്നിവരുടെ വിവാഹത്തെക്കുറിച്ച് ഒരു ഓർമ്മപ്പെടുത്തൽ.\n\n{details}\n\nതാങ്കൾക്കും കുടുംബത്തിനും വരാൻ കഴിയുമോ എന്ന് അറിയിക്കുമല്ലോ. നന്ദി! 🤍'}
 ];
+const DEFAULT_CATS=['Venue','Decoration','Photography & videography','Outfits & jewellery','Mehendi','Invitation cards','Gifts & return gifts','Transport & stay','Miscellaneous / buffer'].map((n,i)=>({id:'c_s'+(i+1),name:n}));
 const DEFAULT_TASKS=['Finalise wedding date & venue','Finalise the guest list','Book caterer & decide the menu','Design & print invitations','Send invitations (Invites tab)','Book photographer & videographer','Buy outfits & jewellery','Decoration & stage','Arrange stay & transport for outstation guests','Follow up on pending RSVPs','Confirm final headcount with caterer','Plan the wedding-day schedule'].map((t,i)=>({id:'t_s'+(i+1),title:t}));
 const PLACEHOLDERS=['{name}','{family}','{members}','{couple}','{date}','{venue}','{details}'];
 
+function baseCat(c){return{id:ID_OK.test(c.id||'')?c.id:uid('c'),name:str(c.name,80)||'Category',est:Math.min(99999999,Math.max(0,Math.round(+c.est)||0)),actual:Math.min(99999999,Math.max(0,Math.round(+c.actual)||0)),status:PAY.includes(c.status)?c.status:'Not started',vendor:str(c.vendor,80),due:DATE_OK.test(c.due||'')?c.due:'',notes:str(c.notes,500),u:num(c.u),by:str(c.by,40)}}
 function baseGuest(g){return{id:ID_OK.test(g.id||'')?g.id:uid('n'),name:str(g.name,120)||'Guest',count:Math.min(999,Math.max(1,parseInt(g.count)||1)),phone:str(g.phone,32),family:str(g.family,80)||'Unassigned',status:RSVP.includes(g.status)?g.status:'Not set',checked:!!g.checked,notes:str(g.notes,1000),invited:!!g.invited,invitedAt:num(g.invitedAt),reminders:Math.max(0,parseInt(g.reminders)||0),remindedAt:num(g.remindedAt),u:num(g.u),by:str(g.by,40)}}
 function freshState(){return{v:2,guests:ORIGINAL.map(baseGuest),
 tasks:DEFAULT_TASKS.map(t=>({id:t.id,title:t.title,due:'',who:'',done:false,u:0,by:''})),
 tpls:DEFAULT_TPL.map(t=>({...t,u:0})),
+cats:DEFAULT_CATS.map(c=>({id:c.id,name:c.name,est:0,actual:0,status:'Not started',vendor:'',due:'',notes:'',u:0,by:''})),
 settings:{couple:'Adul & Mehjabin',date:'',venue:'',tplInvite:'tpl_en_invite',tplRemind:'tpl_en_remind',u:0},
+budget:{perHead:0,buffer:10,currency:'₹',lakh:true,overall:0,cateringActual:0,u:0},
 deleted:{},device:{me:''}}}
 
 function migrate(st,old){
@@ -162,7 +176,9 @@ function normalize(st){
   st.guests=(Array.isArray(st.guests)?st.guests:d.guests).map(baseGuest);
   st.tasks=Array.isArray(st.tasks)?st.tasks:d.tasks;
   st.tpls=Array.isArray(st.tpls)&&st.tpls.length?st.tpls:d.tpls;
+  st.cats=(Array.isArray(st.cats)?st.cats:d.cats).map(baseCat);
   st.settings=Object.assign({},d.settings,st.settings||{});
+  st.budget=Object.assign({},d.budget,st.budget||{});st.budget.perHead=Math.max(0,Math.round(+st.budget.perHead)||0);st.budget.buffer=Math.min(200,Math.max(0,Math.round(+st.budget.buffer)||0));st.budget.overall=Math.max(0,Math.round(+st.budget.overall)||0);st.budget.cateringActual=Math.max(0,Math.round(+st.budget.cateringActual)||0);st.budget.currency=CUR.includes(st.budget.currency)?st.budget.currency:'₹';st.budget.lakh=!!st.budget.lakh;
   st.deleted=st.deleted&&typeof st.deleted==='object'?st.deleted:{};
   st.device=Object.assign({me:''},st.device||{});
   return st}
@@ -180,6 +196,26 @@ function save(){try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){storage
 function touch(r){r.u=now();r.by=str(S.device.me,40);return r}
 const G=id=>S.guests.find(g=>g.id===id);
 const sum=a=>a.reduce((s,g)=>s+(+g.count||0),0);
+const sumField=(a,f)=>a.reduce((s,x)=>s+(+x[f]||0),0);
+function fmtMoney(n){
+  n=Math.round(n||0);const neg=n<0;n=Math.abs(n);const sym=S.budget.currency;
+  let str;
+  if(S.budget.lakh){let s=String(n),head=s.length>3?s.slice(0,-3):'',tail=s.slice(-3);
+    if(head)head=head.replace(/\B(?=(\d{2})+(?!\d))/g,',');
+    str=(head?head+',':'')+tail}
+  else str=n.toLocaleString('en-US');
+  return (neg?'-':'')+sym+str}
+function headCounts(){
+  const confirmed=sum(S.guests.filter(g=>g.status==='Confirmed')),invited=sum(S.guests.filter(g=>g.invited)),
+    buffer=Math.min(200,Math.max(0,num(S.budget.buffer))),expected=Math.round(confirmed*(1+buffer/100));
+  return{confirmed,expected:Math.max(expected,confirmed),invited}}
+function budgetTotals(){
+  const hc=headCounts(),rate=Math.max(0,num(S.budget.perHead)),
+    catering={confirmed:hc.confirmed*rate,expected:hc.expected*rate,invited:hc.invited*rate},
+    catEst=sumField(S.cats,'est'),catActual=sumField(S.cats,'actual'),
+    grandEst=catering.expected+catEst,spent=num(S.budget.cateringActual)+catActual,
+    overall=num(S.budget.overall),remaining=overall?overall-grandEst:null,remainingSpent=overall?overall-spent:null;
+  return{hc,rate,catering,catEst,catActual,grandEst,spent,overall,remaining,remainingSpent}}
 
 /* ---------- small helpers ---------- */
 function todayStr(){const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}
@@ -245,9 +281,11 @@ function renderHome(){
   const inv=S.guests.filter(g=>g.invited),wait=inv.filter(g=>g.status==='Not set'||g.status==='Pending'),n=S.guests.length,pct=n?Math.round(inv.length/n*100):0;
   $('homeInvite').innerHTML=`<div class="summary" style="cursor:pointer" onclick="showPage('invites')"><b>${inv.length} of ${n}</b> groups invited · ${sum(inv).toLocaleString()} of ${sum(S.guests).toLocaleString()} members<div class="bar"><i style="width:${pct}%"></i></div>${wait.length?wait.length+' invited group'+(wait.length==1?'':'s')+' still to reply':'No replies pending'} · tap to send invites</div>`;
   const open=sortTasks(S.tasks.filter(t=>!t.done)).slice(0,3),done=S.tasks.filter(t=>t.done).length;
-  $('homeTasks').innerHTML=open.length?open.map(taskRow).join(''):`<div class="empty">${S.tasks.length?'All '+done+' tasks done 🎉':'No tasks yet.'}</div>`}
+  $('homeTasks').innerHTML=open.length?open.map(taskRow).join(''):`<div class="empty">${S.tasks.length?'All '+done+' tasks done 🎉':'No tasks yet.'}</div>`;
+  const bt=budgetTotals();
+  $('homeBudget').innerHTML=bt.rate||bt.catEst?`<div class="summary" style="cursor:pointer" onclick="showPage('budget')">Estimated cost <b>${fmtMoney(bt.grandEst)}</b> · based on ${bt.hc.expected.toLocaleString()} expected guests${bt.overall?`<div class="bar"><i style="width:${Math.min(100,Math.round(bt.grandEst/bt.overall*100))}%;background:${bt.grandEst>bt.overall?'var(--danger)':'var(--brand)'}"></i></div>${bt.grandEst>bt.overall?'Over your '+fmtMoney(bt.overall)+' budget':fmtMoney(bt.overall-bt.grandEst)+' left of '+fmtMoney(bt.overall)}`:''} · tap for details</div>`:`<div class="summary" style="cursor:pointer" onclick="showPage('budget')">◫ Set up a cost estimate for catering and other expenses · tap to start</div>`}
 function refresh(){updateStats();applyHeader();renderHome();
-  if(curPage==='guests')renderGuests();if(curPage==='invites')renderInvites();if(curPage==='plan')renderPlan();if(curPage==='checkin')renderCheck()}
+  if(curPage==='guests')renderGuests();if(curPage==='invites')renderInvites();if(curPage==='plan')renderPlan();if(curPage==='checkin')renderCheck();if(curPage==='budget')renderBudget()}
 
 /* ---------- navigation ---------- */
 let curPage='home',activeFilter='all',invMode='invite',invPhone='all',focusId=null,taskFilter='todo';const skip=new Set();
@@ -485,6 +523,65 @@ function openTask(id){
 function saveTask(id){const t=S.tasks.find(x=>x.id===id),title=$('tkTitle').value.trim();if(!title)return toast('Enter a task');Object.assign(t,{title:str(title,120),due:DATE_OK.test($('tkDue').value)?$('tkDue').value:'',who:str($('tkWho').value.trim(),40)});touch(t);save();refresh();closeModal();toast('Task saved ✓')}
 function deleteTask(id){askConfirm('Delete this task?','Delete',()=>{S.deleted[id]=now();S.tasks=S.tasks.filter(t=>t.id!==id);save();refresh();toast('Task deleted')},()=>openTask(id))}
 
+/* ---------- budget ---------- */
+function setPerHead(v){S.budget.perHead=Math.min(999999,Math.max(0,Math.round(+v)||0));touch(S.budget);save();renderBudget()}
+function setBuffer(v){S.budget.buffer=Math.min(200,Math.max(0,Math.round(+v)||0));touch(S.budget);save();renderBudget()}
+function setCateringActual(v){S.budget.cateringActual=Math.min(999999999,Math.max(0,Math.round(+v)||0));touch(S.budget);save();renderBudget()}
+function setOverall(v){S.budget.overall=Math.min(999999999,Math.max(0,Math.round(+v)||0));touch(S.budget);save();renderBudget()}
+function openBudgetFormat(){
+  const b=S.budget;
+  openModal(`<h2>Currency &amp; format</h2>
+<div class="field"><label>Currency symbol</label><select id="bfCur">${CUR.map(c=>`<option ${b.currency===c?'selected':''}>${c}</option>`).join('')}</select></div>
+<label class="chk"><input type="checkbox" id="bfLakh" ${b.lakh?'checked':''}> Indian grouping (1,00,000 instead of 100,000)</label>
+<button class="primary" style="width:100%;margin-top:14px" onclick="saveBudgetFormat()">Save</button>`)}
+function saveBudgetFormat(){S.budget.currency=$('bfCur').value;S.budget.lakh=$('bfLakh').checked;touch(S.budget);save();closeModal();renderBudget();if(curPage==='home')renderHome()}
+function catRow(c){
+  const badge=c.status==='Paid'?'confirmed':c.status==='Advance paid'?'pending':'unset';
+  const bits=[];if(c.vendor)bits.push(esc(c.vendor));if(c.due)bits.push('due '+fmtShortDate(c.due));
+  return `<div class="guest" onclick="openCat('${c.id}')"><div class="avatar">${esc(initials(c.name))}</div><div class="gmain"><div class="gname">${esc(c.name)}</div><div class="meta">Est. ${fmtMoney(c.est)}${c.actual?' · Paid '+fmtMoney(c.actual):''}${bits.length?' · '+bits.join(' · '):''}</div></div><span class="badge ${badge}">${esc(c.status)}</span></div>`}
+function renderBudget(){
+  const bt=budgetTotals(),b=S.budget;
+  const card=(lbl,heads,cost)=>`<div class="stat"><div class="n">${fmtMoney(cost)}</div><div class="l">${lbl} · ${heads.toLocaleString()} guests</div></div>`;
+  let h=`<div class="sectionhead" style="margin-top:0"><h2>Per-head estimate</h2><button class="link" onclick="openBudgetFormat()">${esc(b.currency)} format</button></div>
+<div class="row"><div class="field"><label>Cost per plate / head</label><input type="number" min="0" inputmode="decimal" value="${b.perHead||''}" placeholder="0" onchange="setPerHead(this.value)"></div><div class="field"><label>Safety buffer %</label><input type="number" min="0" max="200" value="${b.buffer}" onchange="setBuffer(this.value)"></div></div>
+<div class="stats" style="grid-template-columns:1fr 1fr 1fr">${card('Confirmed',bt.hc.confirmed,bt.catering.confirmed)}${card('Expected',bt.hc.expected,bt.catering.expected)}${card('If everyone invited comes',bt.hc.invited,bt.catering.invited)}</div>
+<div class="hint">Expected = confirmed guests plus your ${b.buffer}% buffer, so last-minute arrivals are covered. This is used in the total below.</div>
+<div class="field" style="margin-top:12px"><label>Actual amount paid for catering (optional)</label><input type="number" min="0" inputmode="decimal" value="${b.cateringActual||''}" placeholder="0" onchange="setCateringActual(this.value)"></div>
+
+<div class="sectionhead"><h2>Budget categories</h2><button class="link" onclick="openCat('new')">＋ Add</button></div>
+${S.cats.length?S.cats.map(catRow).join(''):'<div class="empty">No categories yet.</div>'}
+
+<div class="sectionhead"><h2>Overall</h2></div>
+<div class="field"><label>Your total wedding budget (optional)</label><input type="number" min="0" inputmode="decimal" value="${b.overall||''}" placeholder="e.g. 500000" onchange="setOverall(this.value)"></div>
+<div class="summary">Estimated total (catering + categories): <b>${fmtMoney(bt.grandEst)}</b><br>Paid so far: <b>${fmtMoney(bt.spent)}</b>
+${b.overall?`<div class="bar"><i style="width:${Math.min(100,Math.round(bt.grandEst/b.overall*100))}%;background:${bt.grandEst>b.overall?'var(--danger)':'var(--brand)'}"></i></div>${bt.grandEst>b.overall?'⚠ '+fmtMoney(bt.grandEst-b.overall)+' over your '+fmtMoney(b.overall)+' budget':fmtMoney(bt.remaining)+' left of your '+fmtMoney(b.overall)+' budget'}`:''}</div>
+<div class="guest" onclick="exportBudgetCSV()"><div class="avatar">⇩</div><div class="gmain"><div class="gname">Export budget as CSV</div><div class="meta">Categories, estimates, actuals and vendors</div></div>›</div>`;
+  $('budgetBody').innerHTML=h}
+function openCat(id){
+  const isNew=id==='new',c=isNew?{id:'',name:'',est:0,actual:0,status:'Not started',vendor:'',due:'',notes:''}:S.cats.find(x=>x.id===id);
+  if(!c)return;
+  openModal(`<h2>${isNew?'Add category':'Edit category'}</h2>
+<div class="field"><label>Category name</label><input id="ckName" placeholder="e.g. Photography" value="${esc(c.name)}"></div>
+<div class="row"><div class="field"><label>Estimated cost</label><input id="ckEst" type="number" min="0" inputmode="decimal" value="${c.est||''}"></div><div class="field"><label>Actual / paid</label><input id="ckActual" type="number" min="0" inputmode="decimal" value="${c.actual||''}"></div></div>
+<div class="field"><label>Payment status</label><select id="ckStatus">${PAY.map(s=>`<option ${c.status===s?'selected':''}>${s}</option>`).join('')}</select></div>
+<div class="row"><div class="field"><label>Vendor</label><input id="ckVendor" placeholder="optional" value="${esc(c.vendor)}"></div><div class="field"><label>Due date</label><input id="ckDue" type="date" value="${esc(c.due)}"></div></div>
+<div class="field"><label>Notes</label><textarea id="ckNotes" rows="2">${esc(c.notes||'')}</textarea></div>
+<div class="actions"><button class="primary" onclick="saveCat('${isNew?'':c.id}')">Save</button>${isNew?'':`<button class="danger" onclick="deleteCat('${c.id}')">Delete</button>`}</div>`)}
+function saveCat(id){
+  const name=$('ckName').value.trim();if(!name)return toast('Enter a category name');
+  const data={name,est:$('ckEst').value,actual:$('ckActual').value,status:$('ckStatus').value,vendor:$('ckVendor').value.trim(),due:$('ckDue').value,notes:$('ckNotes').value.trim()};
+  if(id){Object.assign(S.cats.find(x=>x.id===id),baseCat({...data,id}))}
+  else{const c=baseCat({...data,id:uid('c')});S.cats.push(c);id=c.id}
+  touch(S.cats.find(x=>x.id===id));save();refresh();closeModal();toast('Category saved ✓')}
+function deleteCat(id){askConfirm('Delete this budget category?','Delete',()=>{S.deleted[id]=now();S.cats=S.cats.filter(c=>c.id!==id);save();refresh();closeModal();toast('Category deleted')},()=>openCat(id))}
+function exportBudgetCSV(){
+  const bt=budgetTotals(),rows=[['Category','Estimated','Actual','Status','Vendor','Due date','Notes'],
+    ['Catering (per-head estimate)',bt.catering.expected,S.budget.cateringActual,'','','',`Based on ${bt.hc.expected} expected guests at ${fmtMoney(S.budget.perHead)}/head`],
+    ...S.cats.map(c=>[c.name,c.est,c.actual,c.status,c.vendor,c.due,c.notes]),
+    ['TOTAL',bt.grandEst,bt.spent,'','','','']];
+  const csv=rows.map(r=>r.map(v=>'"'+String(v??'').replace(/"/g,'""')+'"').join(',')).join('\n');
+  saveFile('wedlist-budget.csv','\ufeff'+csv).then(ok=>{if(ok)toast('Budget exported ✓')})}
+
 /* ---------- settings ---------- */
 function openSettings(){
   const s=S.settings;
@@ -527,14 +624,16 @@ async function decodeCode(text){
   return JSON.parse(new TextDecoder().decode(u))}
 function buildPayload(full){
   const ch=r=>full||r.u>0;
-  return{app:'wedlist',v:2,from:S.device.me||'',at:now(),full:!!full,guests:S.guests.filter(ch),tasks:S.tasks.filter(ch),tpls:S.tpls.filter(ch),settings:(full||S.settings.u>0)?S.settings:null,deleted:S.deleted}}
+  return{app:'wedlist',v:2,from:S.device.me||'',at:now(),full:!!full,guests:S.guests.filter(ch),tasks:S.tasks.filter(ch),tpls:S.tpls.filter(ch),cats:S.cats.filter(ch),settings:(full||S.settings.u>0)?S.settings:null,budget:(full||S.budget.u>0)?S.budget:null,deleted:S.deleted}}
 const cleanGuest=r=>(r&&ID_OK.test(r.id||''))?baseGuest(r):null;
 const cleanTask=r=>(r&&ID_OK.test(r.id||'')&&String(r.title||'').trim())?{id:r.id,title:str(r.title,120),due:DATE_OK.test(r.due||'')?r.due:'',who:str(r.who,40),done:!!r.done,u:num(r.u),by:str(r.by,40)}:null;
 const cleanTpl=r=>(r&&ID_OK.test(r.id||'')&&String(r.body||'').trim())?{id:r.id,title:str(r.title,60)||'Untitled',kind:r.kind==='remind'?'remind':'invite',body:str(r.body,2000),u:num(r.u)}:null;
+const cleanCat=r=>(r&&ID_OK.test(r.id||''))?baseCat(r):null;
+function cleanBudget(r){if(!r||typeof r!=='object')return null;return{perHead:Math.min(999999,Math.max(0,Math.round(+r.perHead)||0)),buffer:Math.min(200,Math.max(0,Math.round(+r.buffer)||0)),currency:CUR.includes(r.currency)?r.currency:'₹',lakh:!!r.lakh,overall:Math.min(999999999,Math.max(0,Math.round(+r.overall)||0)),cateringActual:Math.min(999999999,Math.max(0,Math.round(+r.cateringActual)||0)),u:num(r.u)}}
 function cleanSettings(r){if(!r||typeof r!=='object')return null;return{couple:str(r.couple,60)||'Wedding',date:DATE_OK.test(r.date||'')?r.date:'',venue:str(r.venue,120),tplInvite:ID_OK.test(r.tplInvite||'')?r.tplInvite:'tpl_en_invite',tplRemind:ID_OK.test(r.tplRemind||'')?r.tplRemind:'tpl_en_remind',u:num(r.u)}}
 function mergeIn(p,apply){
   if(!p||p.app!=='wedlist')throw new Error('not wedlist');
-  const stat={g:{add:0,upd:0,del:0},t:{add:0,upd:0,del:0},p:{add:0,upd:0,del:0},s:0};
+  const stat={g:{add:0,upd:0,del:0},t:{add:0,upd:0,del:0},p:{add:0,upd:0,del:0},c:{add:0,upd:0,del:0},s:0,b:0};
   const tomb={...S.deleted},inT=p.deleted&&typeof p.deleted==='object'?p.deleted:{};
   Object.keys(inT).slice(0,10000).forEach(k=>{if(ID_OK.test(k)){const v=num(inT[k]);if(v>(tomb[k]||0))tomb[k]=v}});
   const run=(local,inc,clean,st,front)=>{
@@ -546,9 +645,10 @@ function mergeIn(p,apply){
     const gone=new Set(local.filter(r=>{const tb=tomb[r.id]||0;return tb>0&&tb>=r.u}).map(r=>r.id));
     st.del=gone.size;
     if(apply){for(let i=local.length-1;i>=0;i--)if(gone.has(local[i].id))local.splice(i,1);if(front)adds.slice().reverse().forEach(r=>local.unshift(r));else adds.forEach(r=>local.push(r))}};
-  run(S.guests,p.guests,cleanGuest,stat.g,true);run(S.tasks,p.tasks,cleanTask,stat.t,false);run(S.tpls,p.tpls,cleanTpl,stat.p,false);
+  run(S.guests,p.guests,cleanGuest,stat.g,true);run(S.tasks,p.tasks,cleanTask,stat.t,false);run(S.tpls,p.tpls,cleanTpl,stat.p,false);run(S.cats,p.cats,cleanCat,stat.c,false);
   const ns=cleanSettings(p.settings);if(ns&&ns.u>S.settings.u){stat.s=1;if(apply)S.settings=ns}
-  if(apply){S.deleted=tomb;if(!S.tpls.length)S.tpls=freshState().tpls;fixDefaults()}
+  const nb=cleanBudget(p.budget);if(nb&&nb.u>S.budget.u){stat.b=1;if(apply)S.budget=nb}
+  if(apply){S.deleted=tomb;if(!S.tpls.length)S.tpls=freshState().tpls;if(!S.cats.length)S.cats=freshState().cats;fixDefaults()}
   return stat}
 let pendingMerge=null,lastCode='';
 async function openSync(){
@@ -589,7 +689,9 @@ async function previewText(t){
     if(st.g.add)parts.push(st.g.add+' new guest group'+(st.g.add==1?'':'s'));if(st.g.upd)parts.push(st.g.upd+' guest update'+(st.g.upd==1?'':'s'));if(st.g.del)parts.push(st.g.del+' guest'+(st.g.del==1?'':'s')+' removed');
     if(st.t.add||st.t.upd||st.t.del)parts.push((st.t.add+st.t.upd)+' task change'+(st.t.add+st.t.upd==1?'':'s')+(st.t.del?', '+st.t.del+' removed':''));
     if(st.p.add||st.p.upd||st.p.del)parts.push((st.p.add+st.p.upd+st.p.del)+' template change'+(st.p.add+st.p.upd+st.p.del==1?'':'s'));
+    if(st.c.add||st.c.upd||st.c.del)parts.push((st.c.add+st.c.upd+st.c.del)+' budget category change'+(st.c.add+st.c.upd+st.c.del==1?'':'s'));
     if(st.s)parts.push('wedding details');
+    if(st.b)parts.push('budget settings');
     box.innerHTML=parts.length?`<div class="confirm"><div class="meta" style="margin:0"><b>${esc(p.from||'Someone')}</b> sent: ${parts.join(', ')}.</div><div class="actions"><button class="primary" onclick="applyMerge()">Merge now</button><button class="secondary" onclick="pendingMerge=null;$('syncPreview').innerHTML=''">Cancel</button></div></div>`:`<div class="hint">Nothing new in that code — you already have these changes.</div>`}
   catch(e){pendingMerge=null;box.innerHTML='<div class="note">That doesn\'t look like a WedList sync code or backup file. Copy the whole message, including the part ending with ~.</div>'}}
 function applyMerge(){if(!pendingMerge)return;try{mergeIn(pendingMerge,true);pendingMerge=null;S.device.pushedU=0;save();refresh();closeModal();toast('Merged ✓')}catch(e){toast('Could not merge that code')}}
@@ -615,8 +717,9 @@ function liveHTML(){
 function updateSyncUI(){const b=$('liveBox');if(b)b.innerHTML=liveHTML();setDot()}
 function collectPush(since){
   const R=[],add=(kind,r)=>{if(r.u>0&&r.u>=since)R.push({id:kind+':'+r.id,kind,data:r,u:r.u})};
-  S.guests.forEach(g=>add('guest',g));S.tasks.forEach(t=>add('task',t));S.tpls.forEach(t=>add('tpl',t));
+  S.guests.forEach(g=>add('guest',g));S.tasks.forEach(t=>add('task',t));S.tpls.forEach(t=>add('tpl',t));S.cats.forEach(c=>add('cat',c));
   if(S.settings.u>0&&S.settings.u>=since)R.push({id:'settings:main',kind:'settings',data:S.settings,u:S.settings.u});
+  if(S.budget.u>0&&S.budget.u>=since)R.push({id:'budget:main',kind:'budget',data:S.budget,u:S.budget.u});
   Object.keys(S.deleted).forEach(k=>{const ts=S.deleted[k];if(ts>0&&ts>=since)R.push({id:'tomb:'+k,kind:'tomb',data:{id:k},u:ts})});
   return R}
 async function syncPush(){
@@ -629,13 +732,14 @@ async function syncPull(){
   for(let loop=0;loop<20;loop++){
     const rows=await sbCall('wl_pull',{p_room:S.device.room,p_since:since});
     if(!Array.isArray(rows)||!rows.length)break;
-    const p={app:'wedlist',v:2,guests:[],tasks:[],tpls:[],settings:null,deleted:{}};
+    const p={app:'wedlist',v:2,guests:[],tasks:[],tpls:[],cats:[],settings:null,budget:null,deleted:{}};
     rows.forEach(r=>{
       if(!r||!r.data)return;
-      if(r.kind==='guest')p.guests.push(r.data);else if(r.kind==='task')p.tasks.push(r.data);else if(r.kind==='tpl')p.tpls.push(r.data);
+      if(r.kind==='guest')p.guests.push(r.data);else if(r.kind==='task')p.tasks.push(r.data);else if(r.kind==='tpl')p.tpls.push(r.data);else if(r.kind==='cat')p.cats.push(r.data);
       else if(r.kind==='settings'){if(!p.settings||num(r.u)>num(p.settings.u))p.settings=r.data}
+      else if(r.kind==='budget'){if(!p.budget||num(r.u)>num(p.budget.u))p.budget=r.data}
       else if(r.kind==='tomb'&&ID_OK.test(r.data.id||''))p.deleted[r.data.id]=Math.max(p.deleted[r.data.id]||0,num(r.u))});
-    const st=mergeIn(p,true);changes+=st.g.add+st.g.upd+st.g.del+st.t.add+st.t.upd+st.t.del+st.p.add+st.p.upd+st.p.del+st.s;
+    const st=mergeIn(p,true);changes+=st.g.add+st.g.upd+st.g.del+st.t.add+st.t.upd+st.t.del+st.p.add+st.p.upd+st.p.del+st.c.add+st.c.upd+st.c.del+st.s+st.b;
     const last=rows[rows.length-1].server_at;if(last&&(!maxAt||String(last)>String(maxAt)))maxAt=last;
     if(rows.length<2000)break;since=new Date(fixTs(last)).toISOString()}
   S.device.cursor=maxAt;return changes}
